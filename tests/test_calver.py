@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+# noinspection PyProtectedMember
 from scm_calver_config import (
     CalverConfig,
     _base,
