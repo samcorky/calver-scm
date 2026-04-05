@@ -151,6 +151,14 @@ class TestParseTag:
         cfg = make_config(mode="day")
         assert _parse_tag("v2026.04.15", cfg) == (2026, 4, 15, 0)
 
+    def test_month_scheme_tag_in_day_mode(self) -> None:
+        cfg = make_config(mode="day")
+        assert _parse_tag("v2026.04.1", cfg) == (2026, 4, 1, 0)
+
+    def test_day_scheme_tag_in_month_mode(self) -> None:
+        cfg = make_config(mode="month")
+        assert _parse_tag("v2026.04.15.2", cfg) == (2026, 4, 0, 15)
+
     def test_no_prefix(self) -> None:
         cfg = make_config(tag_prefix="")
         assert _parse_tag("2026.04.0", cfg) == (2026, 4, 0, 0)
@@ -302,6 +310,15 @@ class TestCalverScm:
                 make_version(tag="v2026.04.14.0", distance=2, root=str(tmp_path))
             )
             assert result == "2026.04.15.0.dev2"
+
+        def test_month_scheme_tag_still_works_after_switch(self, freeze_april: object, tmp_path: Path) -> None:
+            (tmp_path / "pyproject.toml").write_bytes(
+                b'[tool.calver_scm]\nmode = "day"\n'
+            )
+            result = calver_scm(
+                make_version(tag="v2026.04.1", distance=0, root=str(tmp_path))
+            )
+            assert result == "2026.04.01.0"
 
     class TestMalformedTag:
         """Behaviour with unparseable tags."""
