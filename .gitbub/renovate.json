@@ -3,7 +3,7 @@
   "extends": [
     "config:recommended"
   ],
-  "enabledManagers": ["pep621", "github-actions"],
+  "enabledManagers": ["pep621", "pre-commit", "github-actions"],
   "pep621": {
     "rangeStrategy": "bump"
   },
@@ -18,6 +18,13 @@
     {
       "matchDepTypes": ["project.dependencies", "build-system.requires"],
       "groupName": "runtime dependencies"
+    },
+    {
+      "matchManagers": ["pre-commit"],
+      "groupName": "pre-commit hooks",
+      "automerge": true,
+      "automergeType": "pr",
+      "matchUpdateTypes": ["minor", "patch"]
     },
     {
       "matchManagers": ["github-actions"],
