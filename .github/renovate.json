@@ -9,7 +9,7 @@
     "enabled": true
   },
   "minimumReleaseAge": "1 day",
-  "prHourlyLimit": 2,
+  "prHourlyLimit": 3,
   "prConcurrentLimit": 3,
   "prCreation": "immediate",
   "fetchChangeLogs": "off",
