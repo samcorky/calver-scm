@@ -16,7 +16,6 @@ from scm_calver_config import (
     _is_same_period,
     _load_calver_config,
     _parse_tag,
-    calver_local,
     calver_scm,
 )
 
@@ -424,13 +423,3 @@ class TestCalverScm:
         def test_double_digit_month(self, freeze_april: object) -> None:
             result = calver_scm(make_version(distance=1))
             assert result == "2026.04.0.dev1"
-
-
-class TestCalverLocal:
-    """Local version scheme."""
-
-    def test_dirty(self) -> None:
-        assert calver_local(make_version(dirty=True)) == ".dirty"
-
-    def test_clean(self) -> None:
-        assert calver_local(make_version()) == ""

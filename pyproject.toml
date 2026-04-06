@@ -1,10 +1,43 @@
 [project]
 name = "scm-calver-config"
-version = "0.1.0-alpha"
+version = "0.1.0a0"
 description = "Configurable CalVer versioning plugin for setuptools-scm"
-requires-python = ">=3.9"
+readme = "README.md"
+requires-python = ">=3.10"
 dependencies = [
     "setuptools-scm>=9.2.2",
+    "tomli>=2.0.0; python_version < '3.11'",
+]
+
+authors = [
+    { name = "Sam Cork" },
+]
+
+maintainers = [
+    { name = "Sam Cork" },
+]
+
+license = "MIT"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Software Development :: Version Control",
+    "Typing :: Typed",
+]
+
+keywords = [
+    "calver",
+    "calendar versioning",
+    "setuptools-scm",
+    "versioning",
 ]
 
 [project.urls]
@@ -20,9 +53,10 @@ packages = ["src/scm_calver_config"]
 
 [dependency-groups]
 dev = [
+    "mypy>=1.15.0",
     "pre-commit>=4.3.0",
     "pytest>=8.4.2",
-    "ruff>=0.14.9",
+    "ruff>=0.11.0",
 ]
 
 [tool.pytest.ini_options]
@@ -30,17 +64,33 @@ pythonpath = ["src"]
 testpaths = ["tests"]
 addopts = [
     "--tb=short",
+    "--strict-markers",
+    "--strict-config",
 ]
 
 [tool.ruff]
 line-length = 88
 
+[tool.ruff.lint]
+select = [
+    "E", "W",   # pycodestyle
+    "F",        # pyflakes
+    "I",        # isort
+    "UP",       # pyupgrade
+    "B",        # flake8-bugbear
+    "SIM",      # flake8-simplify
+    "TCH",      # flake8-type-checking
+    "RUF",      # ruff-specific
+]
+
 [tool.mypy]
 mypy_path = "src"
 files = ["src", "tests"]
+strict = true
+pretty = true
 
 [project.entry-points."setuptools_scm.version_scheme"]
-calver_scm = "scm_calver:calver_scm"
+calver_scm = "scm_calver_config:calver_scm"
 
 [project.entry-points."setuptools_scm.local_scheme"]
-calver_local = "scm_calver:calver_local"
+calver_local = "scm_calver_config:calver_local"

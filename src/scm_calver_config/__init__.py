@@ -179,8 +179,3 @@ def calver_scm(version: ScmVersion) -> str:
     patch = (tag_patch + 1) if same_period and cfg.patch else 0
 
     return f"{base}.{patch}.dev{version.distance}"
-
-
-def calver_local(version: ScmVersion) -> str:
-    """Return a local version suffix — .dirty if the working tree is dirty."""
-    return ".dirty" if version.dirty else ""
