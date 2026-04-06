@@ -97,7 +97,4 @@ strict = true
 pretty = true
 
 [project.entry-points."setuptools_scm.version_scheme"]
-calver_scm = "scm_calver_config:calver_scm"
-
-[project.entry-points."setuptools_scm.local_scheme"]
-calver_local = "scm_calver_config:calver_local"
+calver-scm = "scm_calver_config:calver_scm"
