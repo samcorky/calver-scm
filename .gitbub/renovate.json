@@ -1,27 +1,50 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:recommended"
+    "config:recommended",
+    ":label(dependencies)"
   ],
+  "minimumReleaseAge": "1 day",
+  "prHourlyLimit": 2,
+  "prConcurrentLimit": 3,
+  "prCreation": "immediate",
+  "fetchChangeLogs": "off",
+  "dependencyDashboard": true,
+  "pruneStaleBranches": true,
   "enabledManagers": ["pep621", "pre-commit", "github-actions"],
-  "pep621": {
-    "rangeStrategy": "bump"
+  "pre-commit": {
+    "enabled": true
   },
   "packageRules": [
     {
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "all non-major updates"
+    },
+    {
+      "matchManagers": ["pep621"],
+      "matchDepTypes": ["project.dependencies", "build-system.requires"],
+      "groupName": "runtime dependencies",
+      "addLabels": ["dependencies/python-packages"],
+      "rangeStrategy": "bump"
+    },
+    {
+      "matchManagers": ["pep621"],
       "matchDepTypes": ["dependency-groups"],
       "groupName": "dev dependencies",
+      "addLabels": ["dependencies/python-packages"],
+      "rangeStrategy": "bump"
+    },
+    {
+      "matchManagers": ["pep621"],
+      "matchDepTypes": ["dependency-groups"],
       "automerge": true,
       "automergeType": "pr",
       "matchUpdateTypes": ["minor", "patch"]
     },
     {
-      "matchDepTypes": ["project.dependencies", "build-system.requires"],
-      "groupName": "runtime dependencies"
-    },
-    {
       "matchManagers": ["pre-commit"],
       "groupName": "pre-commit hooks",
+      "addLabels": ["dependencies/pre-commit"],
       "automerge": true,
       "automergeType": "pr",
       "matchUpdateTypes": ["minor", "patch"]
@@ -29,6 +52,7 @@
     {
       "matchManagers": ["github-actions"],
       "groupName": "github actions",
+      "addLabels": ["dependencies/github-actions"],
       "automerge": true,
       "automergeType": "pr",
       "matchUpdateTypes": ["minor", "patch"]
