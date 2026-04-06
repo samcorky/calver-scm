@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import datetime
 from pathlib import Path
+from typing import Literal
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -24,10 +25,10 @@ JANUARY = datetime.date(2026, 1, 5)
 
 
 def make_version(
-        tag: str | None = None,
-        distance: int = 0,
-        dirty: bool = False,
-        root: str = ".",
+    tag: str | None = None,
+    distance: int = 0,
+    dirty: bool = False,
+    root: str = ".",
 ) -> MagicMock:
     """Create a mock ScmVersion."""
     version = MagicMock()
@@ -38,9 +39,19 @@ def make_version(
     return version
 
 
-def make_config(**kwargs: object) -> CalverConfig:
+def make_config(
+    mode: Literal["month", "day"] = "month",
+    patch: bool = True,
+    fallback: Literal["dev", "date"] = "dev",
+    tag_prefix: str = "v",
+) -> CalverConfig:
     """Create a CalverConfig with optional overrides."""
-    return CalverConfig(**kwargs)
+    return CalverConfig(
+        mode=mode,
+        patch=patch,
+        fallback=fallback,
+        tag_prefix=tag_prefix,
+    )
 
 
 @pytest.fixture
@@ -96,7 +107,7 @@ class TestCalverConfig:
 
 
 class TestLoadCalverConfig:
-    """Config loading from pyproject.toml."""
+    """Config loading from pyproject.toml and environment."""
 
     def test_loads_from_pyproject(self, tmp_path: Path) -> None:
         pyproject = tmp_path / "pyproject.toml"
@@ -119,6 +130,65 @@ patch = false
         cfg = _load_calver_config(tmp_path)
         assert cfg == CalverConfig()
 
+    def test_env_overrides_toml(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_bytes(b"""
+[tool.calver_scm]
+mode = "month"
+patch = false
+fallback = "date"
+tag_prefix = "v"
+""")
+        monkeypatch.setenv("SCM_CALVER_MODE", "day")
+        monkeypatch.setenv("SCM_CALVER_PATCH", "true")
+        monkeypatch.setenv("SCM_CALVER_FALLBACK", "dev")
+        monkeypatch.setenv("SCM_CALVER_TAG_PREFIX", "release-")
+
+        cfg = _load_calver_config(tmp_path)
+
+        assert cfg.mode == "day"
+        assert cfg.patch is True
+        assert cfg.fallback == "dev"
+        assert cfg.tag_prefix == "release-"
+
+    def test_env_used_when_toml_missing(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("SCM_CALVER_MODE", "day")
+        monkeypatch.setenv("SCM_CALVER_PATCH", "false")
+        monkeypatch.setenv("SCM_CALVER_FALLBACK", "date")
+        monkeypatch.setenv("SCM_CALVER_TAG_PREFIX", "x")
+
+        cfg = _load_calver_config(tmp_path)
+
+        assert cfg == CalverConfig(
+            mode="day", patch=False, fallback="date", tag_prefix="x"
+        )
+
+    def test_env_partial_override_keeps_toml_values(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_bytes(b"""
+[tool.calver_scm]
+mode = "month"
+patch = false
+fallback = "date"
+tag_prefix = "v"
+""")
+        monkeypatch.setenv("SCM_CALVER_PATCH", "true")
+
+        cfg = _load_calver_config(tmp_path)
+
+        assert cfg.mode == "month"
+        assert cfg.patch is True
+        assert cfg.fallback == "date"
+        assert cfg.tag_prefix == "v"
+
     def test_invalid_toml_raises(self, tmp_path: Path) -> None:
         pyproject = tmp_path / "pyproject.toml"
         pyproject.write_bytes(b"not valid toml ][")
@@ -128,7 +198,16 @@ patch = false
     def test_invalid_config_raises(self, tmp_path: Path) -> None:
         pyproject = tmp_path / "pyproject.toml"
         pyproject.write_bytes(b'[tool.calver_scm]\nmode = "invalid"\n')
-        with pytest.raises(RuntimeError, match="Invalid \\[tool.calver_scm\\] config"):
+        with pytest.raises(
+            RuntimeError, match="Invalid config: Invalid mode: 'invalid'"
+        ):
+            _load_calver_config(tmp_path)
+
+    def test_invalid_patch_env_raises(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("SCM_CALVER_PATCH", "maybe")
+        with pytest.raises(RuntimeError, match="Invalid config"):
             _load_calver_config(tmp_path)
 
 
@@ -267,7 +346,9 @@ class TestCalverScm:
             (tmp_path / "pyproject.toml").write_bytes(
                 b"[tool.calver_scm]\npatch = false\n"
             )
-            result = calver_scm(make_version(tag="v2026.04.2", distance=3, root=str(tmp_path)))
+            result = calver_scm(
+                make_version(tag="v2026.04.2", distance=3, root=str(tmp_path))
+            )
             assert result == "2026.04.0.dev3"
 
     class TestNewMonth:
@@ -288,12 +369,12 @@ class TestCalverScm:
             (tmp_path / "pyproject.toml").write_bytes(
                 b'[tool.calver_scm]\nmode = "day"\n'
             )
-            result = calver_scm(
-                make_version(tag="v2026.04.15.0", root=str(tmp_path))
-            )
+            result = calver_scm(make_version(tag="v2026.04.15.0", root=str(tmp_path)))
             assert result == "2026.04.15.0"
 
-        def test_same_day_increments(self, freeze_april: object, tmp_path: Path) -> None:
+        def test_same_day_increments(
+            self, freeze_april: object, tmp_path: Path
+        ) -> None:
             (tmp_path / "pyproject.toml").write_bytes(
                 b'[tool.calver_scm]\nmode = "day"\n'
             )
@@ -311,7 +392,9 @@ class TestCalverScm:
             )
             assert result == "2026.04.15.0.dev2"
 
-        def test_month_scheme_tag_still_works_after_switch(self, freeze_april: object, tmp_path: Path) -> None:
+        def test_month_scheme_tag_still_works_after_switch(
+            self, freeze_april: object, tmp_path: Path
+        ) -> None:
             (tmp_path / "pyproject.toml").write_bytes(
                 b'[tool.calver_scm]\nmode = "day"\n'
             )
