@@ -2,8 +2,12 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended",
+    ":maintainLockFilesWeekly",
     ":label(dependencies)"
   ],
+  "pre-commit": {
+    "enabled": true
+  },
   "minimumReleaseAge": "1 day",
   "prHourlyLimit": 2,
   "prConcurrentLimit": 3,
@@ -12,9 +16,6 @@
   "dependencyDashboard": true,
   "pruneStaleBranches": true,
   "enabledManagers": ["pep621", "pre-commit", "github-actions"],
-  "pre-commit": {
-    "enabled": true
-  },
   "packageRules": [
     {
       "matchUpdateTypes": ["minor", "patch"],
