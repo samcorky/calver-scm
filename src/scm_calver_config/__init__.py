@@ -40,7 +40,7 @@ class CalverConfig:
             raise ValueError(f"Invalid tag_prefix: {self.tag_prefix!r}")
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "CalverConfig":
+    def from_dict(cls, data: dict[str, Any]) -> CalverConfig:
         mode = data.get("mode", "month")
         patch = data.get("patch", True)
         fallback = data.get("fallback", "dev")
@@ -54,7 +54,7 @@ class CalverConfig:
         )
 
     @classmethod
-    def overlay_env(cls, base: "CalverConfig") -> "CalverConfig":
+    def overlay_env(cls, base: CalverConfig) -> CalverConfig:
         """Override config fields with environment variables, if present."""
         data: dict[str, Any] = {
             "mode": base.mode,
@@ -73,7 +73,8 @@ class CalverConfig:
                 data["patch"] = False
             else:
                 raise ValueError(
-                    f"Invalid SCM_CALVER_PATCH value: {os.environ['SCM_CALVER_PATCH']!r}"
+                    f"Invalid SCM_CALVER_PATCH value: "
+                    f"{os.environ['SCM_CALVER_PATCH']!r}"
                 )
         if "SCM_CALVER_FALLBACK" in os.environ:
             data["fallback"] = os.environ["SCM_CALVER_FALLBACK"]

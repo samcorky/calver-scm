@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import datetime
-from pathlib import Path
-from typing import Literal
+import re
+from typing import TYPE_CHECKING, Literal
+
+if TYPE_CHECKING:
+    from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -97,11 +100,11 @@ class TestCalverConfig:
         assert cfg.tag_prefix == ""
 
     def test_invalid_mode(self) -> None:
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError):
             CalverConfig(mode="year")  # type: ignore[arg-type]
 
     def test_invalid_fallback(self) -> None:
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError):
             CalverConfig(fallback="none")  # type: ignore[arg-type]
 
 
@@ -191,14 +194,14 @@ tag_prefix = "v"
     def test_invalid_toml_raises(self, tmp_path: Path) -> None:
         pyproject = tmp_path / "pyproject.toml"
         pyproject.write_bytes(b"not valid toml ][")
-        with pytest.raises(RuntimeError, match="Invalid pyproject.toml"):
+        with pytest.raises(RuntimeError, match=re.escape("Invalid pyproject.toml")):
             _load_calver_config(tmp_path)
 
     def test_invalid_config_raises(self, tmp_path: Path) -> None:
         pyproject = tmp_path / "pyproject.toml"
         pyproject.write_bytes(b'[tool.calver_scm]\nmode = "invalid"\n')
         with pytest.raises(
-            RuntimeError, match="Invalid config: Invalid mode: 'invalid'"
+            RuntimeError, match=re.escape("Invalid config: Invalid mode: 'invalid'")
         ):
             _load_calver_config(tmp_path)
 
