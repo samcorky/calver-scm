@@ -428,8 +428,8 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "setuptools-scm", specifier = ">=9.2.2" },
-    { name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=2.0.0" },
+    { name = "setuptools-scm", specifier = ">=10.0.5" },
+    { name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=2.4.1" },
 ]
 
 [package.metadata.requires-dev]
