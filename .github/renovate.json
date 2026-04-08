@@ -32,36 +32,31 @@
       "matchDepTypes": ["project.dependencies", "build-system.requires"],
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "runtime dependencies",
-      "groupSlug": "weekly-runtime",
-      "prTitle": "chore(runtime deps): weekly update"
+      "groupSlug": "weekly-runtime"
     },
     {
       "matchManagers": ["pep621"],
       "matchDepTypes": ["dependency-groups"],
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "dev dependencies",
-      "groupSlug": "weekly-dev",
-      "prTitle": "chore(dev deps): weekly update"
+      "groupSlug": "weekly-dev"
     },
     {
       "matchManagers": ["pre-commit"],
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "pre-commit hooks",
-      "groupSlug": "weekly-precommit",
-      "prTitle": "chore(pre-commit hooks): update"
+      "groupSlug": "weekly-precommit"
     },
     {
       "matchManagers": ["github-actions"],
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "GitHub Actions",
-      "groupSlug": "weekly-gh-actions",
-      "prTitle": "chore(GitHub Actions): update"
+      "groupSlug": "weekly-gh-actions"
     },
     {
       "matchUpdateTypes": ["lockFileMaintenance"],
       "groupName": "lockfile maintenance",
-      "groupSlug": "weekly-lockfiles",
-      "prTitle": "chore(lockfiles): weekly maintenance"
+      "groupSlug": "weekly-lockfiles"
     }
   ]
 }
