@@ -1,0 +1,95 @@
+name: Python CI & Quality Checks
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - ".github/workflows/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - "src/**"
+      - "tests/**"
+      - ".pre-commit-config.yaml"
+  workflow_dispatch:
+
+jobs:
+  setup:
+    name: Setup UV & Cache
+    runs-on: ubuntu-latest
+    outputs:
+      workspace-path: ${{ steps.set-workspace.outputs.path }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set workspace path
+        id: set-workspace
+        run: echo "path=$(pwd)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache uv
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
+
+      - name: Cache pre-commit
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pre-commit
+          key: ${{ runner.os }}-precommit-${{ hashFiles('.pre-commit-config.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-precommit-
+
+      - name: Install UV
+        uses: astral-sh/setup-uv@v8
+
+      - name: Sync dependencies
+        run: uv sync --frozen --no-dev
+
+  lint:
+    name: Lint (Ruff)
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Use shared workspace
+        run: cd ${{ needs.setup.outputs.workspace-path }}
+
+      - name: Run ruff incrementally
+        run: uv run pre-commit run ruff-check ruff-format --from-ref origin/main --to-ref HEAD --show-diff-on-failure
+
+  type-check:
+    name: Type Check (Mypy)
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Use shared workspace
+        run: cd ${{ needs.setup.outputs.workspace-path }}
+
+      - name: Run mypy incrementally
+        run: uv run pre-commit run mypy --from-ref origin/main --to-ref HEAD --show-diff-on-failure
+
+  tests:
+    name: Run Tests
+    needs: setup
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - name: Use shared workspace
+        run: cd ${{ needs.setup.outputs.workspace-path }}
+
+      - name: Install Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
+
+      - name: Sync dependencies
+        run: uv sync --frozen --no-dev
+
+      - name: Sync test dependencies
+        run: uv sync --frozen --dev
+
+      - name: Run pytest
+        run: uv run pre-commit run pytest --all-files
