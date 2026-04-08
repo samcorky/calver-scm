@@ -39,15 +39,15 @@ jobs:
 
       - name: Run pre-commit hooks (Others)
         run: |
-          uv run pre-commit run trailing-whitespace --all-files --hook-stage manual
-          uv run pre-commit run end-of-file-fixer --all-files --hook-stage manual
-          uv run pre-commit run check-yaml --all-files --hook-stage manual
-          uv run pre-commit run check-toml --all-files --hook-stage manual
-          uv run pre-commit run check-json --all-files --hook-stage manual
-          uv run pre-commit run check-ast --all-files --hook-stage manual
-          uv run pre-commit run check-case-conflict --all-files --hook-stage manual
-          uv run pre-commit run check-merge-conflict --all-files --hook-stage manual
-          uv run pre-commit run validate-pyproject --all-files --hook-stage manual
+          uv run pre-commit run trailing-whitespace --all-files
+          uv run pre-commit run end-of-file-fixer --all-files
+          uv run pre-commit run check-yaml --all-files
+          uv run pre-commit run check-toml --all-files
+          uv run pre-commit run check-json --all-files
+          uv run pre-commit run check-ast --all-files
+          uv run pre-commit run check-case-conflict --all-files
+          uv run pre-commit run check-merge-conflict --all-files
+          uv run pre-commit run validate-pyproject --all-files
 
   tests:
     name: Run Tests
