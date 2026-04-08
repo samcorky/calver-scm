@@ -5,6 +5,7 @@ on:
     types: [opened, synchronize, reopened]
     paths:
       - ".github/workflows/**"
+      - ".github/renovate.json"
       - "pyproject.toml"
       - "uv.lock"
       - "src/**"
@@ -48,6 +49,7 @@ jobs:
           uv run pre-commit run check-case-conflict --all-files --show-diff-on-failure
           uv run pre-commit run check-merge-conflict --all-files --show-diff-on-failure
           uv run pre-commit run validate-pyproject --all-files --show-diff-on-failure
+          uv run pre-commit run renovate-config-validator --all-files --show-diff-on-failure
 
   tests:
     name: Run Tests
