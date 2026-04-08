@@ -35,7 +35,7 @@
       "groupSlug": "weekly-runtime",
       "rangeStrategy": "widen",
       "commitMessageAction": "chore",
-      "commitMessageSubject": "runtime deps: weekly update",
+      "commitMessageTopic": "runtime deps",
       "commitMessageExtra": "Update {{depName}} to {{newVersion}}"
     },
     {
@@ -46,7 +46,7 @@
       "groupSlug": "weekly-dev",
       "rangeStrategy": "widen",
       "commitMessageAction": "chore",
-      "commitMessageSubject": "dev deps: weekly update",
+      "commitMessageTopic": "dev deps",
       "commitMessageExtra": "Update {{depName}} to {{newVersion}}"
     },
     {
@@ -55,7 +55,7 @@
       "groupName": "pre-commit hooks",
       "groupSlug": "weekly-precommit",
       "commitMessageAction": "chore",
-      "commitMessageSubject": "pre-commit hooks: weekly update",
+      "commitMessageTopic": "pre-commit hooks",
       "commitMessageExtra": "Update {{depName}} to {{newVersion}}"
     },
     {
@@ -64,7 +64,7 @@
       "groupName": "GitHub Actions",
       "groupSlug": "weekly-gh-actions",
       "commitMessageAction": "chore",
-      "commitMessageSubject": "GitHub Actions: weekly update",
+      "commitMessageTopic": "GitHub Actions",
       "commitMessageExtra": "Update {{depName}} to {{newVersion}}"
     },
     {
@@ -72,7 +72,8 @@
       "groupName": "lockfile maintenance",
       "groupSlug": "weekly-lockfiles",
       "commitMessageAction": "chore",
-      "commitMessageSubject": "lockfiles: weekly maintenance",
+      "commitMessageTopic": "lockfiles",
+      "commitMessageExtra": "Regenerate lock files",
       "automerge": true,
       "automergeType": "branch"
     }
