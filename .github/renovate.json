@@ -58,12 +58,10 @@
       "prTitle": "chore(GitHub Actions): update"
     },
     {
-      "matchUpdateTypes": ["pin", "digest"],
+      "matchUpdateTypes": ["lockFileMaintenance"],
       "groupName": "lockfile maintenance",
       "groupSlug": "weekly-lockfiles",
-      "prTitle": "chore(lockfiles): weekly maintenance",
-      "automerge": true,
-      "automergeType": "branch"
+      "prTitle": "chore(lockfiles): weekly maintenance"
     }
   ]
 }
