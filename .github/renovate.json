@@ -12,13 +12,13 @@
     ":label(dependencies)",
     ":updateNotScheduled",
     ":maintainLockFilesWeekly",
+    ":rebaseStalePrs",
     "security:openssf-scorecard"
   ],
   "enabledManagers": ["pep621", "pre-commit", "github-actions"],
   "pre-commit": {
     "enabled": true
   },
-  "prCreation": "not-pending",
   "prHourlyLimit": 1,
   "prConcurrentLimit": 2,
   "schedule": ["before 9am on Monday"],
@@ -50,11 +50,6 @@
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "GitHub Actions",
       "groupSlug": "weekly-gh-actions"
-    },
-    {
-      "matchUpdateTypes": ["pin", "digest"],
-      "groupName": "lockfile maintenance",
-      "groupSlug": "weekly-lockfile"
     }
   ]
 }
