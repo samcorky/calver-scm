@@ -260,7 +260,7 @@ Pull requests and issues are welcome!
 [precommit-badge]: https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit
 
 [pypi-link]: https://pypi.org/project/calver-scm/
-[ci-link]: https://github.com/samcorky/calver-scm/actions/workflows/tests.yml
+[ci-link]: https://github.com/samcorky/calver-scm/actions/workflows/publish.yml
 [ruff-link]: https://github.com/astral-sh/ruff
 [uv-link]: https://github.com/astral-sh/uv
 [mypy-link]: https://mypy-lang.org/
