@@ -1,10 +1,10 @@
 name: Publish
 
 on:
-  push:
+  release:
+    types: [published]
     tags:
-      # Publish on any tag starting with a `v`, e.g., v0.1.0
-      - v*
+      - 'v*'
 
 jobs:
   run:
