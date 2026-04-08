@@ -2,9 +2,15 @@
 
 **Automatic, date-based versioning for Python projects — powered by your Git history.**
 
-[![PyPI](https://img.shields.io/pypi/v/calver-scm)](https://pypi.org/project/calver-scm/)
-[![Python](https://img.shields.io/pypi/pyversions/calver-scm)](https://pypi.org/project/calver-scm/)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![PyPI version][pypi-version-badge]][pypi-link]
+[![PyPI downloads][pypi-downloads-badge]][pypi-link]
+[![Python versions][python-badge]][pypi-link]
+[![License: MIT][license-badge]](LICENSE)
+[![CI][ci-badge]][ci-link]
+[![Ruff][ruff-badge]][ruff-link]
+[![uv][uv-badge]][uv-link]
+[![mypy][mypy-badge]][mypy-link]
+[![pre-commit][precommit-badge]][precommit-link]
 
 `calver-scm` is a [setuptools-scm](https://github.com/pypa/setuptools_scm) plugin that generates [CalVer](https://calver.org) version strings directly from your Git tags and commit history. No `__version__` files to maintain, no manual bumping — just tag and go.
 
@@ -241,3 +247,21 @@ Pull requests and issues are welcome!
 ## License
 
 [MIT](LICENSE)
+
+<!-- Badge references -->
+[pypi-version-badge]: https://img.shields.io/pypi/v/calver-scm?logo=pypi&logoColor=white
+[pypi-downloads-badge]: https://img.shields.io/pypi/dm/calver-scm?logo=pypi&logoColor=white
+[python-badge]: https://img.shields.io/pypi/pyversions/calver-scm?logo=python&logoColor=white
+[license-badge]: https://img.shields.io/badge/license-MIT-green
+[ci-badge]: https://img.shields.io/github/actions/workflow/status/samcorky/calver-scm/tests.yml?logo=github&label=CI
+[ruff-badge]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json
+[uv-badge]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json
+[mypy-badge]: https://img.shields.io/badge/mypy-checked-blue?logo=python&logoColor=white
+[precommit-badge]: https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit
+
+[pypi-link]: https://pypi.org/project/calver-scm/
+[ci-link]: https://github.com/samcorky/calver-scm/actions/workflows/tests.yml
+[ruff-link]: https://github.com/astral-sh/ruff
+[uv-link]: https://github.com/astral-sh/uv
+[mypy-link]: https://mypy-lang.org/
+[precommit-link]: https://pre-commit.com/
