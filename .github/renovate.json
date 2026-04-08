@@ -43,9 +43,11 @@
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "runtime dependencies",
       "groupSlug": "weekly-runtime",
-      "commitMessageAction": "chore",
+      "commitMessageAction": "Update",
       "commitMessageTopic": "runtime deps",
-      "commitMessageExtra": "Update {{depName}} to {{newVersion}}"
+      "commitMessageExtra": "{{depName}} to {{newVersion}}",
+      "automerge": true,
+      "automergeType": "pr"
     },
     {
       "matchManagers": ["pep621"],
@@ -53,35 +55,40 @@
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "dev dependencies",
       "groupSlug": "weekly-dev",
-      "commitMessageAction": "chore",
+      "commitMessageAction": "Update",
       "commitMessageTopic": "dev deps",
-      "commitMessageExtra": "Update {{depName}} to {{newVersion}}"
+      "commitMessageExtra": "{{depName}} to {{newVersion}}",
+      "automerge": true,
+      "automergeType": "pr"
     },
     {
       "matchManagers": ["pre-commit"],
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "pre-commit hooks",
       "groupSlug": "weekly-precommit",
-      "commitMessageAction": "chore",
+      "commitMessageAction": "Update",
       "commitMessageTopic": "pre-commit hooks",
-      "commitMessageExtra": "Update {{depName}} to {{newVersion}}"
+      "commitMessageExtra": "{{depName}} to {{newVersion}}",
+      "automerge": true,
+      "automergeType": "pr"
     },
     {
       "matchManagers": ["github-actions"],
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "GitHub Actions",
       "groupSlug": "weekly-gh-actions",
-      "commitMessageAction": "chore",
+      "commitMessageAction": "Update",
       "commitMessageTopic": "GitHub Actions",
-      "commitMessageExtra": "Update {{depName}} to {{newVersion}}"
+      "commitMessageExtra": "{{depName}} to {{newVersion}}",
+      "automerge": true,
+      "automergeType": "pr"
     },
     {
       "matchUpdateTypes": ["lockFileMaintenance"],
       "groupName": "lockfile maintenance",
       "groupSlug": "weekly-lockfiles",
-      "commitMessageAction": "chore",
+      "commitMessageAction": "Update",
       "commitMessageTopic": "lockfiles",
-      "commitMessageExtra": "Regenerate lock files",
       "automerge": true,
       "automergeType": "pr"
     }
