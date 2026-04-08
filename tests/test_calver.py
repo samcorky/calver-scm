@@ -1,4 +1,4 @@
-"""Tests for scm_calver_config."""
+"""Tests for calver_scm."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 # noinspection PyProtectedMember
-from scm_calver_config import (
+from calver_scm import (
     CalverConfig,
     _base,
     _is_same_period,
@@ -59,7 +59,7 @@ def make_config(
 @pytest.fixture
 def freeze_april() -> object:
     """Freeze date to 2026-04-15."""
-    with patch("scm_calver_config.datetime") as mock_dt:
+    with patch("calver_scm.datetime") as mock_dt:
         mock_dt.date.today.return_value = TODAY
         mock_dt.date.side_effect = lambda *a, **kw: datetime.date(*a, **kw)
         yield mock_dt
@@ -68,7 +68,7 @@ def freeze_april() -> object:
 @pytest.fixture
 def freeze_january() -> object:
     """Freeze date to 2026-01-05."""
-    with patch("scm_calver_config.datetime") as mock_dt:
+    with patch("calver_scm.datetime") as mock_dt:
         mock_dt.date.today.return_value = JANUARY
         mock_dt.date.side_effect = lambda *a, **kw: datetime.date(*a, **kw)
         yield mock_dt

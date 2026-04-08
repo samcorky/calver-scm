@@ -1,6 +1,4 @@
-# src/scm_calver_config/__init__.py
-
-"""SCM CalVer Config — a configurable CalVer scheme for setuptools-scm."""
+""" calver-scm - Automatic, date-based versioning for Python projects — powered by your Git history."""
 
 from __future__ import annotations
 

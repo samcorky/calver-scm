@@ -1,7 +1,7 @@
 [project]
-name = "scm-calver-config"
+name = "calver-scm"
 dynamic = ["version"]
-description = "Configurable CalVer versioning plugin for setuptools-scm"
+description = "Automatic, configurable CalVer versioning for setuptools-scm — no manual bumping required"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -22,14 +22,18 @@ classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Build Tools",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Software Development :: Version Control",
+    "Topic :: Software Development :: Version Control :: Git",
+    "Topic :: System :: Software Distribution",
     "Typing :: Typed",
 ]
 
@@ -37,19 +41,26 @@ keywords = [
     "calver",
     "calendar versioning",
     "setuptools-scm",
+    "setuptools_scm",
     "versioning",
+    "version scheme",
+    "automatic versioning",
+    "git tags",
+    "pyproject",
 ]
 
 [project.urls]
-Repository = "https://github.com/samcorky/scm-calver-config"
-Issues = "https://github.com/samcorky/scm-calver-config/issues"
+Homepage = "https://github.com/samcorky/calver-scm"
+Repository = "https://github.com/samcorky/calver-scm"
+Issues = "https://github.com/samcorky/calver-scm/issues"
+Changelog = "https://github.com/samcorky/calver-scm/releases"
 
 [build-system]
 requires = ["hatchling>=1.29.0", "hatch-vcs>=0.5.0"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/scm_calver_config"]
+packages = ["src/calver_scm"]
 
 [tool.hatch.version]
 source = "vcs"
@@ -97,4 +108,4 @@ strict = true
 pretty = true
 
 [project.entry-points."setuptools_scm.version_scheme"]
-calver-scm = "scm_calver_config:calver_scm"
+calver-scm = "calver_scm:calver_scm"
