@@ -83,7 +83,7 @@
       "commitMessageTopic": "lockfiles",
       "commitMessageExtra": "Regenerate lock files",
       "automerge": true,
-      "automergeType": "branch"
+      "automergeType": "pr"
     }
   ]
 }
