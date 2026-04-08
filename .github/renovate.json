@@ -21,8 +21,8 @@
   "pre-commit": {
     "enabled": true
   },
-  "prHourlyLimit": 1,
-  "prConcurrentLimit": 2,
+  "prHourlyLimit": 5,
+  "prConcurrentLimit": 5,
   "schedule": ["before 9am on Monday"],
   "timezone": "Europe/London",
   "pruneStaleBranches": true,
@@ -32,26 +32,36 @@
       "matchDepTypes": ["project.dependencies", "build-system.requires"],
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "runtime dependencies",
-      "groupSlug": "weekly-runtime"
+      "groupSlug": "weekly-runtime",
+      "prTitle": "chore(runtime deps): weekly update"
     },
     {
       "matchManagers": ["pep621"],
       "matchDepTypes": ["dependency-groups"],
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "dev dependencies",
-      "groupSlug": "weekly-dev"
+      "groupSlug": "weekly-dev",
+      "prTitle": "chore(dev deps): weekly update"
     },
     {
       "matchManagers": ["pre-commit"],
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "pre-commit hooks",
-      "groupSlug": "weekly-precommit"
+      "groupSlug": "weekly-precommit",
+      "prTitle": "chore(pre-commit hooks): update"
     },
     {
       "matchManagers": ["github-actions"],
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "GitHub Actions",
-      "groupSlug": "weekly-gh-actions"
+      "groupSlug": "weekly-gh-actions",
+      "prTitle": "chore(GitHub Actions): update"
+    },
+    {
+      "matchUpdateTypes": ["lockFileMaintenance"],
+      "groupName": "lockfile maintenance",
+      "groupSlug": "weekly-lockfiles",
+      "prTitle": "chore(lockfiles): weekly maintenance"
     }
   ]
 }
