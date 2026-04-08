@@ -13,6 +13,8 @@
     ":updateNotScheduled",
     ":maintainLockFilesWeekly",
     ":rebaseStalePrs",
+    ":automergePatch",
+    ":combinePatchMinorReleases",
     "security:openssf-scorecard"
   ],
   "enabledManagers": ["pep621", "pre-commit", "github-actions"],
