@@ -1,4 +1,8 @@
-""" calver-scm - Automatic, date-based versioning for Python projects — powered by your Git history."""
+"""
+calver-scm
+
+Automatic, date-based versioning for Python projects — powered by your Git history.
+"""
 
 from __future__ import annotations
 
@@ -15,7 +19,7 @@ if TYPE_CHECKING:
 try:
     import tomllib
 except ModuleNotFoundError:
-    import tomli as tomllib  # type: ignore[no-redef]
+    import tomli as tomllib  # type: ignore[import-not-found, no-redef]
 
 
 @dataclass(frozen=True, slots=True)

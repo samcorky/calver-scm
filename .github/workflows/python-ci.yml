@@ -1,0 +1,75 @@
+name: 🛠 Python CI & Quality Checks
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - ".github/workflows/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - "src/**"
+      - "tests/**"
+      - ".pre-commit-config.yaml"
+  workflow_dispatch:
+
+jobs:
+  quality:
+    name: Quality Checks (Ruff, Mypy, Hooks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --frozen --dev
+
+      - name: Run Ruff (Lint & Format)
+        run: uv run ruff check . && uv run ruff format --check .
+
+      - name: Run Mypy (Type Check)
+        run: uv run mypy .
+
+      - name: Run pre-commit hooks (Others)
+        run: |
+          uv run pre-commit run trailing-whitespace --all-files --show-diff-on-failure
+          uv run pre-commit run end-of-file-fixer --all-files --show-diff-on-failure
+          uv run pre-commit run check-yaml --all-files --show-diff-on-failure
+          uv run pre-commit run check-toml --all-files --show-diff-on-failure
+          uv run pre-commit run check-json --all-files --show-diff-on-failure
+          uv run pre-commit run check-ast --all-files --show-diff-on-failure
+          uv run pre-commit run check-case-conflict --all-files --show-diff-on-failure
+          uv run pre-commit run check-merge-conflict --all-files --show-diff-on-failure
+          uv run pre-commit run validate-pyproject --all-files --show-diff-on-failure
+
+  tests:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          version: "latest"
+
+      - name: Set up Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: uv sync --frozen --dev
+
+      - name: Run pytest
+        run: uv run pytest
