@@ -253,7 +253,7 @@ Pull requests and issues are welcome!
 [pypi-downloads-badge]: https://img.shields.io/pypi/dm/calver-scm?logo=pypi&logoColor=white
 [python-badge]: https://img.shields.io/pypi/pyversions/calver-scm?logo=python&logoColor=white
 [license-badge]: https://img.shields.io/badge/license-MIT-green
-[ci-badge]: https://img.shields.io/github/actions/workflow/status/samcorky/calver-scm/tests.yml?logo=github&label=CI
+[ci-badge]: https://img.shields.io/github/actions/workflow/status/samcorky/calver-scm/publish.yml?logo=github&label=CI
 [ruff-badge]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json
 [uv-badge]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json
 [mypy-badge]: https://img.shields.io/badge/mypy-checked-blue?logo=python&logoColor=white
