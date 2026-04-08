@@ -17,6 +17,10 @@
   "enabledManagers": ["pep621", "pre-commit", "github-actions"],
   "packageRules": [
     {
+      "matchManagers": ["pep621", "pre-commit", "github-actions"],
+      "rangeStrategy": "widen"
+    },
+    {
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "all non-major updates"
     },
@@ -24,15 +28,13 @@
       "matchManagers": ["pep621"],
       "matchDepTypes": ["project.dependencies", "build-system.requires"],
       "groupName": "runtime dependencies",
-      "addLabels": ["dependencies/python-packages"],
-      "rangeStrategy": "bump"
+      "addLabels": ["dependencies/python-packages"]
     },
     {
       "matchManagers": ["pep621"],
       "matchDepTypes": ["dependency-groups"],
       "groupName": "dev dependencies",
-      "addLabels": ["dependencies/python-packages"],
-      "rangeStrategy": "bump"
+      "addLabels": ["dependencies/python-packages"]
     },
     {
       "matchManagers": ["pep621"],
