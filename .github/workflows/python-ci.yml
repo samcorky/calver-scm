@@ -36,7 +36,7 @@ jobs:
             ${{ runner.os }}-precommit-
 
       - name: Install UV
-        uses: astral-sh/setup-uv@v8
+        uses: astral-sh/setup-uv@v8.0.0
 
       - name: Sync dependencies
         run: uv sync --frozen --no-dev
@@ -67,7 +67,7 @@ jobs:
             ${{ runner.os }}-precommit-
 
       - name: Install UV
-        uses: astral-sh/setup-uv@v8
+        uses: astral-sh/setup-uv@v8.0.0
 
       - name: Sync dependencies
         run: uv sync --frozen --no-dev
@@ -102,7 +102,7 @@ jobs:
             ${{ runner.os }}-precommit-
 
       - name: Install UV
-        uses: astral-sh/setup-uv@v8
+        uses: astral-sh/setup-uv@v8.0.0
 
       - name: Install Python ${{ matrix.python-version }}
         run: uv python install ${{ matrix.python-version }}
