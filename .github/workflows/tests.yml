@@ -6,7 +6,6 @@ on:
       - main
     paths:
       - ".github/workflows/tests.yml"
-      - ".github/workflows/coverage.yml"
       - "codecov.yml"
       - "pyproject.toml"
       - "uv.lock"
@@ -57,3 +56,20 @@ jobs:
           name: coverage-xml
           path: coverage.xml
           retention-days: 1
+
+  coverage:
+    name: Upload Coverage
+    runs-on: ubuntu-latest
+    needs: tests
+
+    steps:
+      - name: Download coverage artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-xml
+
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage.xml
+          fail_ci_if_error: true
