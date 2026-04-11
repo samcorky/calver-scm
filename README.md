@@ -109,6 +109,78 @@ YYYY.MM[.DD].PATCH[.devN][+dirty]
 
 The **patch** segment increments automatically from your last tag within the current period, and resets to `0` whenever the month (or day, in day mode) rolls over.
 
+## Pre-release, post-release, and local tags
+
+If your Git tag carries any PEP 440 suffix, `calver-scm` preserves it in the
+generated version and normalises it to its
+[PEP 440](https://peps.python.org/pep-0440/) canonical form.
+
+### Pre-release suffixes (`a`, `b`, `rc`)
+
+Tag any of the recognised PEP 440 aliases and it is normalised automatically:
+
+| Tag suffix                     | Canonical output |
+|--------------------------------|------------------|
+| `alpha` / `a`                  | `a`              |
+| `beta` / `b`                   | `b`              |
+| `preview` / `pre` / `c` / `rc` | `rc`             |
+
+```
+v2026.04.0a1     → 2026.04.0a1
+v2026.04.0beta2  → 2026.04.0b2
+v2026.04.0pre1   → 2026.04.0rc1
+v2026.04.0rc1    → 2026.04.0rc1
+```
+
+### Post-release suffixes (`post`)
+
+| Tag suffix             | Canonical output |
+|------------------------|------------------|
+| `-rN` / `revN`         | `postN`          |
+| `post-N` / `postN`     | `postN`          |
+
+```
+v2026.04.0-r1     → 2026.04.0.post1
+v2026.04.0.rev2   → 2026.04.0.post2
+v2026.04.0.post-3 → 2026.04.0.post3
+v2026.04.0.post3  → 2026.04.0.post3
+```
+
+### Dev suffixes (`dev`)
+
+| Tag suffix      | Canonical output |
+|-----------------|------------------|
+| `dev` (bare)    | `dev0`           |
+| `dev-N` / `devN`| `devN`           |
+
+```
+v2026.04.0.dev    → 2026.04.0.dev0
+v2026.04.0.dev-4  → 2026.04.0.dev4
+v2026.04.0.dev4   → 2026.04.0.dev4
+```
+
+### Local version segment (`+`)
+
+A `+local` segment on a tag is preserved as-is. PEP 440 normalises
+underscores to dots within local identifiers:
+
+```
+v2026.04.0+abc            → 2026.04.0+abc
+v2026.04.0+linux.x86_64   → 2026.04.0+linux.x86.64
+```
+
+> **Note:** The `+local` segment on a *tag* is distinct from the `+dirty`
+> suffix that setuptools-scm appends for uncommitted working-tree changes.
+> See [Local scheme](#local-scheme) for how to control that behaviour.
+
+### Combining suffixes
+
+All segments can be combined and are each normalised independently:
+
+```
+v2026.04.0rc1.post2.dev3+local → 2026.04.0rc1.post2.dev3+local
+```
+
 ---
 
 ## Configuration
