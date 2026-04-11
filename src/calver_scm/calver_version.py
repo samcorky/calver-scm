@@ -8,6 +8,29 @@ from packaging.version import Version
 class CalverVersion(Version):
     """A `Version` helper that preserves CalVer-specific zero padding."""
 
+    def _pep440_suffix(self) -> str:
+        """Render non-release PEP 440 segments in canonical order."""
+        suffix = ""
+
+        if self.pre is not None:
+            pre_tag, pre_num = self.pre
+            suffix += f"{pre_tag}{pre_num}"
+
+        if self.post is not None:
+            suffix += f".post{self.post}"
+
+        if self.dev is not None:
+            suffix += f".dev{self.dev}"
+
+        if self.local is not None:
+            suffix += f"+{self.local}"
+
+        return suffix
+
+    def format_from_base(self, *, base: str, patch: int) -> str:
+        """Render version from a pre-computed CalVer base and patch value."""
+        return f"{base}.{patch}{self._pep440_suffix()}"
+
     def format(self, *, mode: Literal["month", "day"]) -> str:
         """Render the version using the requested CalVer release shape."""
         release = self.release
@@ -33,17 +56,4 @@ class CalverVersion(Version):
 
             base = f"{year}.{month:02d}.{patch}"
 
-        if self.pre is not None:
-            pre_tag, pre_num = self.pre
-            base += f"{pre_tag}{pre_num}"
-
-        if self.post is not None:
-            base += f".post{self.post}"
-
-        if self.dev is not None:
-            base += f".dev{self.dev}"
-
-        if self.local is not None:
-            base += f"+{self.local}"
-
-        return base
+        return f"{base}{self._pep440_suffix()}"

@@ -23,23 +23,15 @@ def _parse_tag(tag: str, cfg: CalverConfig) -> CalverVersion | None:
 def _release_components(
     version: CalverVersion,
     cfg: CalverConfig,
-) -> tuple[int, int, int, int] | None:
-    """Extract (year, month, day, patch) from a parsed CalVer version."""
+) -> tuple[tuple[int, ...], int] | None:
+    """Extract (date parts, patch) from a parsed CalVer version."""
     release = version.release
+    date_len = len(cfg.scheme_tokens)
 
-    if cfg.mode == "day":
-        if len(release) == 3:
-            year, month, day = release
-            return year, month, day, 0
-        if len(release) == 4:
-            year, month, day, patch = release
-            return year, month, day, patch
-        return None
+    if len(release) == date_len:
+        return release, 0
 
-    if len(release) == 2:
-        year, month = release
-        return year, month, 0, 0
-    if len(release) == 3:
-        year, month, patch = release
-        return year, month, 0, patch
+    if len(release) == date_len + 1:
+        return release[:-1], release[-1]
+
     return None
