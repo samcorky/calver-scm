@@ -6,6 +6,15 @@ import datetime
 import re
 from typing import TYPE_CHECKING, Literal
 
+# noinspection PyProtectedMember
+from calver_scm.config import CalverConfig, _load_calver_config
+
+# noinspection PyProtectedMember
+from calver_scm.parser import _parse_tag, _release_components
+
+# noinspection PyProtectedMember
+from calver_scm.utils import _base, _is_same_period
+
 if TYPE_CHECKING:
     from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -13,14 +22,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 # noinspection PyProtectedMember
-from calver_scm import (
-    CalverConfig,
-    _base,
-    _is_same_period,
-    _load_calver_config,
-    _parse_tag,
-    calver_scm,
-)
+from calver_scm import calver_scm
+
 
 TODAY = datetime.date(2026, 4, 15)
 JANUARY = datetime.date(2026, 1, 5)
@@ -41,6 +44,7 @@ def make_version(
     return version
 
 
+# noinspection PyShadowingNames
 def make_config(
     mode: Literal["month", "day"] = "month",
     patch: bool = True,
@@ -59,7 +63,7 @@ def make_config(
 @pytest.fixture
 def freeze_april() -> object:
     """Freeze date to 2026-04-15."""
-    with patch("calver_scm.datetime") as mock_dt:
+    with patch("calver_scm.scheme.datetime") as mock_dt:
         mock_dt.date.today.return_value = TODAY
         mock_dt.date.side_effect = lambda *a, **kw: datetime.date(*a, **kw)
         yield mock_dt
@@ -68,7 +72,7 @@ def freeze_april() -> object:
 @pytest.fixture
 def freeze_january() -> object:
     """Freeze date to 2026-01-05."""
-    with patch("calver_scm.datetime") as mock_dt:
+    with patch("calver_scm.scheme.datetime") as mock_dt:
         mock_dt.date.today.return_value = JANUARY
         mock_dt.date.side_effect = lambda *a, **kw: datetime.date(*a, **kw)
         yield mock_dt
@@ -213,36 +217,52 @@ tag_prefix = "v"
             _load_calver_config(tmp_path)
 
 
+# noinspection PyArgumentEqualDefault
 class TestParseTag:
     """Tag parsing into components."""
 
     def test_month_mode_with_patch(self) -> None:
         cfg = make_config()
-        assert _parse_tag("v2026.04.1", cfg) == (2026, 4, 0, 1)
+        parsed = _parse_tag("v2026.04.1", cfg)
+        assert parsed is not None
+        assert _release_components(parsed, cfg) == (2026, 4, 0, 1)
 
     def test_month_mode_without_patch(self) -> None:
         cfg = make_config()
-        assert _parse_tag("v2026.04", cfg) == (2026, 4, 0, 0)
+        parsed = _parse_tag("v2026.04", cfg)
+        assert parsed is not None
+        assert _release_components(parsed, cfg) == (2026, 4, 0, 0)
 
     def test_day_mode_with_patch(self) -> None:
         cfg = make_config(mode="day")
-        assert _parse_tag("v2026.04.15.2", cfg) == (2026, 4, 15, 2)
+        parsed = _parse_tag("v2026.04.15.2", cfg)
+        assert parsed is not None
+        assert _release_components(parsed, cfg) == (2026, 4, 15, 2)
 
     def test_day_mode_without_patch(self) -> None:
         cfg = make_config(mode="day")
-        assert _parse_tag("v2026.04.15", cfg) == (2026, 4, 15, 0)
+        parsed = _parse_tag("v2026.04.15", cfg)
+        assert parsed is not None
+        assert _release_components(parsed, cfg) == (2026, 4, 15, 0)
 
     def test_month_scheme_tag_in_day_mode(self) -> None:
         cfg = make_config(mode="day")
-        assert _parse_tag("v2026.04.1", cfg) == (2026, 4, 1, 0)
+        parsed = _parse_tag("v2026.04.1", cfg)
+        assert parsed is not None
+        assert _release_components(parsed, cfg) == (2026, 4, 1, 0)
 
     def test_day_scheme_tag_in_month_mode(self) -> None:
         cfg = make_config(mode="month")
-        assert _parse_tag("v2026.04.15.2", cfg) == (2026, 4, 0, 15)
+        parsed = _parse_tag("v2026.04.15.2", cfg)
+        assert parsed is not None
+        assert _release_components(parsed, cfg) is None
+
 
     def test_no_prefix(self) -> None:
         cfg = make_config(tag_prefix="")
-        assert _parse_tag("2026.04.0", cfg) == (2026, 4, 0, 0)
+        parsed = _parse_tag("2026.04.0", cfg)
+        assert parsed is not None
+        assert _release_components(parsed, cfg) == (2026, 4, 0, 0)
 
     def test_malformed_returns_none(self) -> None:
         cfg = make_config()
@@ -253,6 +273,8 @@ class TestParseTag:
         assert _parse_tag("vabc.def.ghi", cfg) is None
 
 
+
+# noinspection PyArgumentEqualDefault
 class TestIsSamePeriod:
     """Period comparison logic."""
 
@@ -277,6 +299,7 @@ class TestIsSamePeriod:
         assert _is_same_period(TODAY, 2026, 4, 14, cfg) is False
 
 
+# noinspection PyArgumentEqualDefault
 class TestBase:
     """Base version string generation."""
 
@@ -400,6 +423,7 @@ class TestCalverScm:
             (tmp_path / "pyproject.toml").write_bytes(
                 b'[tool.calver_scm]\nmode = "day"\n'
             )
+            # noinspection PyArgumentEqualDefault
             result = calver_scm(
                 make_version(tag="v2026.04.1", distance=0, root=str(tmp_path))
             )
@@ -426,3 +450,61 @@ class TestCalverScm:
         def test_double_digit_month(self, freeze_april: object) -> None:
             result = calver_scm(make_version(distance=1))
             assert result == "2026.04.0.dev1"
+
+class TestIntegration:
+    """End-to-end integration tests."""
+    @pytest.mark.parametrize(
+        ("tag", "expected"),
+        [
+            ("v2026.04.1rc2", "2026.04.1rc2"),
+            ("v2026.04.1a1", "2026.04.1a1"),
+            ("v2026.04.1b3", "2026.04.1b3"),
+            ("v2026.04.1.dev4", "2026.04.1.dev4"),
+            ("v2026.04.1+abc.def", "2026.04.1+abc.def"),
+            ("v2026.04.1rc2.post3.dev4+abc", "2026.04.1rc2.post3.dev4+abc"),
+        ],
+    )
+    def test_clean_tag_preserves_pep440_segments(
+            self,
+            freeze_april: object,
+            tag: str,
+            expected: str,
+    ) -> None:
+        result = calver_scm(make_version(tag=tag))
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        ("tag", "expected"),
+        [
+            ("v2026.04.15.2rc1", "2026.04.15.2rc1"),
+            ("v2026.04.15.2.dev2", "2026.04.15.2.dev2"),
+            ("v2026.04.15.2+linux.1", "2026.04.15.2+linux.1"),
+        ],
+    )
+    def test_day_mode_clean_tag_preserves_pep440_segments(
+            self,
+            freeze_april: object,
+            tmp_path: Path,
+            tag: str,
+            expected: str,
+    ) -> None:
+        (tmp_path / "pyproject.toml").write_bytes(b'[tool.calver_scm]\nmode = "day"\n')
+        result = calver_scm(make_version(tag=tag, root=str(tmp_path)))
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        ("tag", "expected"),
+        [
+            ("v2026.04.1alpha2", "2026.04.1a2"),
+            ("v2026.04.1preview4", "2026.04.1rc4"),
+            ("v2026.04.1-r5", "2026.04.1.post5"),
+            ("v2026.04.1dev", "2026.04.1.dev0"),
+        ],
+    )
+    def test_clean_tag_normalizes_pep440_aliases(
+            self,
+            freeze_april: object,
+            tag: str,
+            expected: str,
+    ) -> None:
+        assert calver_scm(make_version(tag=tag)) == expected
