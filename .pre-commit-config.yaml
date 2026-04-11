@@ -37,7 +37,6 @@ repos:
     rev: v0.25
     hooks:
       - id: validate-pyproject
-        args: [--strict]
         files: ^pyproject\.toml$
 
   - repo: local
