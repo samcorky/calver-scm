@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from dataclasses import dataclass
 from functools import lru_cache
 from typing import TYPE_CHECKING, Any, Literal
@@ -8,12 +9,12 @@ from typing import TYPE_CHECKING, Any, Literal
 if TYPE_CHECKING:
     from pathlib import Path
 
-try:
+if sys.version_info >= (3, 11):
     # noinspection PyCompatibility
     import tomllib
-except ModuleNotFoundError:
+else:
     # noinspection SpellCheckingInspection
-    import tomli as tomllib  # type: ignore[import-not-found, no-redef]
+    import tomli as tomllib
 
 
 @dataclass(frozen=True, slots=True)
@@ -26,6 +27,7 @@ class CalverConfig:
     tag_prefix: str = "v"
 
     def __post_init__(self) -> None:
+        """Validate field values after dataclass initialization."""
         if self.mode not in ("month", "day"):
             raise ValueError(f"Invalid mode: {self.mode!r}")
         if not isinstance(self.patch, bool):
@@ -37,6 +39,7 @@ class CalverConfig:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> CalverConfig:
+        """Build a config object from raw mapping values."""
         mode = data.get("mode", "month")
         patch = data.get("patch", True)
         fallback = data.get("fallback", "dev")

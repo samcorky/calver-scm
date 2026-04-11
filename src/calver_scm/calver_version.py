@@ -6,7 +6,10 @@ from packaging.version import Version
 
 
 class CalverVersion(Version):
+    """A `Version` helper that preserves CalVer-specific zero padding."""
+
     def format(self, *, mode: Literal["month", "day"]) -> str:
+        """Render the version using the requested CalVer release shape."""
         release = self.release
 
         if mode == "day":

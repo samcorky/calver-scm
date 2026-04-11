@@ -1,5 +1,4 @@
-"""
-calver-scm
+"""calver-scm.
 
 Automatic, date-based versioning for Python projects — powered by your Git history.
 """
