@@ -22,4 +22,4 @@ jobs:
           node-version: "lts/*"
 
       - name: Validate Renovate config
-        run: npx --yes renovate-config-validator --strict .github/renovate.json
+        run: npx --yes --package renovate renovate-config-validator --strict .github/renovate.json
