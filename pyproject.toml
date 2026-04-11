@@ -86,6 +86,10 @@ dev = [
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
+markers = [
+    "unit: fast, module-scoped unit tests",
+    "e2e: end-to-end calver_scm behaviour tests",
+]
 addopts = [
     "--tb=short",
     "--strict-markers",

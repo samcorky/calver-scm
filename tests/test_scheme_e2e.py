@@ -14,6 +14,9 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
 
+pytestmark = pytest.mark.e2e
+
+
 @pytest.mark.parametrize(
     ("tag", "distance", "dirty", "today", "expected"),
     [

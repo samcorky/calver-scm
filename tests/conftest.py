@@ -13,6 +13,39 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
+_SCOPE_MARKERS = ("unit", "e2e")
+
+
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    """Fail collection when tests are missing or mixing scope markers."""
+    missing_scope: list[str] = []
+    multiple_scope: list[str] = []
+
+    for item in items:
+        matched = [name for name in _SCOPE_MARKERS if item.get_closest_marker(name)]
+        if not matched:
+            missing_scope.append(item.nodeid)
+        elif len(matched) > 1:
+            multiple_scope.append(item.nodeid)
+
+    if not missing_scope and not multiple_scope:
+        return
+
+    errors: list[str] = []
+    if missing_scope:
+        errors.append(
+            "Tests missing scope marker (choose one: unit, e2e):\n- "
+            + "\n- ".join(missing_scope)
+        )
+    if multiple_scope:
+        errors.append(
+            "Tests with multiple scope markers (choose exactly one):\n- "
+            + "\n- ".join(multiple_scope)
+        )
+
+    raise pytest.UsageError("\n\n".join(errors))
+
+
 @pytest.fixture(autouse=True)
 def clear_config_cache() -> Generator[None, None, None]:
     """Clear cached config reads between tests for deterministic behaviour."""

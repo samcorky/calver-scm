@@ -16,6 +16,9 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
+pytestmark = pytest.mark.unit
+
+
 def test_enum_from_raw_accepts_instances_and_strings() -> None:
     """Coerce enum values from either already-typed or raw string input."""
     assert CalverMode.from_raw(CalverMode.MONTH) is CalverMode.MONTH

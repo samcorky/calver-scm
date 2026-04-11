@@ -19,6 +19,8 @@ from calver_scm.utils import (
     _token_value,
 )
 
+pytestmark = pytest.mark.unit
+
 
 @pytest.mark.parametrize(
     ("token", "date", "expected"),

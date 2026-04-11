@@ -4,6 +4,8 @@ import pytest
 
 from calver_scm.calver_version import CalverVersion
 
+pytestmark = pytest.mark.unit
+
 
 @pytest.mark.parametrize(
     ("raw", "expected"),

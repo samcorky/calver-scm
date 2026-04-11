@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import pytest
+
 from calver_scm.config import CalverConfig, CalverMode
 
 # noinspection PyProtectedMember
 from calver_scm.parser import _parse_tag, _release_components
+
+pytestmark = pytest.mark.unit
 
 
 def test_parse_tag_strips_prefix_and_parses_version() -> None:
