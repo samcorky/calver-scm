@@ -110,6 +110,14 @@ class TestCalverConfig:
         with pytest.raises(ValueError):
             CalverConfig(fallback="none")  # type: ignore[arg-type]
 
+    def test_invalid_patch_type(self) -> None:
+        with pytest.raises(ValueError, match="Invalid patch value"):
+            CalverConfig(patch="yes")  # type: ignore[arg-type]
+
+    def test_invalid_tag_prefix_type(self) -> None:
+        with pytest.raises(ValueError, match="Invalid tag_prefix"):
+            CalverConfig(tag_prefix=123)  # type: ignore[arg-type]
+
 
 class TestLoadCalverConfig:
     """Config loading from pyproject.toml and environment."""
@@ -269,6 +277,12 @@ class TestParseTag:
     def test_non_numeric_returns_none(self) -> None:
         cfg = make_config()
         assert _parse_tag("vabc.def.ghi", cfg) is None
+
+    def test_day_mode_two_part_release_returns_none(self) -> None:
+        cfg = make_config(mode="day")
+        parsed = _parse_tag("v2026.04", cfg)
+        assert parsed is not None
+        assert _release_components(parsed, cfg) is None
 
 
 # noinspection PyArgumentEqualDefault
@@ -436,6 +450,29 @@ class TestCalverScm:
         def test_incomplete_tag_falls_back(self, freeze_april: object) -> None:
             result = calver_scm(make_version(tag="v2026", distance=2))
             assert result == "2026.04.0.dev2"
+
+        def test_malformed_tag_date_fallback(
+            self, freeze_april: object, tmp_path: Path
+        ) -> None:
+            (tmp_path / "pyproject.toml").write_bytes(
+                b'[tool.calver_scm]\nfallback = "date"\n'
+            )
+            result = calver_scm(
+                make_version(tag="not-a-version", distance=3, root=str(tmp_path))
+            )
+            assert result == "2026.04.0"
+
+        def test_incompatible_tag_date_fallback(
+            self, freeze_april: object, tmp_path: Path
+        ) -> None:
+            (tmp_path / "pyproject.toml").write_bytes(
+                b'[tool.calver_scm]\nfallback = "date"\n'
+            )
+            # 4-part tag in month mode: _release_components returns None → date fallback
+            result = calver_scm(
+                make_version(tag="v2026.04.15.2", distance=1, root=str(tmp_path))
+            )
+            assert result == "2026.04.0"
 
     class TestMonthPadding:
         """Ensure the month is always zero-padded."""

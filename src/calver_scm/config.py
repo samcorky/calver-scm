@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 if sys.version_info >= (3, 11):
     # noinspection PyCompatibility
     import tomllib
-else:
+else:  # pragma: no cover
     # noinspection SpellCheckingInspection
     import tomli as tomllib
 
