@@ -4,7 +4,7 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
     paths:
-      - ".github/workflows/**"
+      - ".github/workflows/format.yml"
       - "pyproject.toml"
       - "uv.lock"
       - "src/**"
