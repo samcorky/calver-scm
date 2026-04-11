@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - ".github/workflows/tests.yml"
+      - ".github/workflows/coverage.yml"
       - "codecov.yml"
       - "pyproject.toml"
       - "uv.lock"
