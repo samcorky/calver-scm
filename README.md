@@ -1,8 +1,8 @@
-<div align="center">
+﻿<div align="center">
 
 # calver-scm
 
-**Automatic, date-based versioning for Python projects — powered by your Git history.**
+**Automatic, date-based versioning for Python projects â€” powered by your Git history.**
 
 [![PyPI version][pypi-version-badge]][pypi-link]
 [![PyPI downloads][pypi-downloads-badge]][pypi-link]
@@ -21,17 +21,17 @@
 
 ---
 
-`calver-scm` is a [setuptools-scm](https://github.com/pypa/setuptools_scm) plugin that generates [CalVer](https://calver.org) version strings directly from your Git tags and commit history. No `__version__` files to maintain, no manual bumping — just tag and go.
+`calver-scm` is a [setuptools-scm](https://github.com/pypa/setuptools_scm) plugin that generates [CalVer](https://calver.org) version strings directly from your Git tags and commit history. No `__version__` files to maintain, no manual bumping â€” just tag and go.
 
 Versions look like this:
 
 ```
-2026.04.0          ← clean tag, April 2026, patch 0
-2026.04.1.dev3     ← 3 commits after that tag, still April, patch incremented
-2026.05.0.dev3     ← 3 commits after an old tag, month rolled over, patch reset
-2026.04.15.0       ← day mode: clean tag on the 15th
-2026.04.15.1.dev2  ← day mode: 2 commits after a tag on the same day
-2026.04.0.dev12    ← no tag yet, 12 commits in
+2026.04.0          â† clean tag, April 2026, patch 0
+2026.04.1.dev3     â† 3 commits after that tag, still April, patch incremented
+2026.05.0.dev3     â† 3 commits after an old tag, month rolled over, patch reset
+2026.04.15.0       â† day mode: clean tag on the 15th
+2026.04.15.1.dev2  â† day mode: 2 commits after a tag on the same day
+2026.04.0.dev12    â† no tag yet, 12 commits in
 ```
 
 ---
@@ -158,10 +158,10 @@ Tag any of the recognised PEP 440 aliases and it is normalised automatically:
 | `preview` / `pre` / `c` / `rc` | `rc`             |
 
 ```
-v2026.04.0a1     → 2026.04.0a1
-v2026.04.0beta2  → 2026.04.0b2
-v2026.04.0pre1   → 2026.04.0rc1
-v2026.04.0rc1    → 2026.04.0rc1
+v2026.04.0a1     â†’ 2026.04.0a1
+v2026.04.0beta2  â†’ 2026.04.0b2
+v2026.04.0pre1   â†’ 2026.04.0rc1
+v2026.04.0rc1    â†’ 2026.04.0rc1
 ```
 
 ### Post-release suffixes (`post`)
@@ -172,10 +172,10 @@ v2026.04.0rc1    → 2026.04.0rc1
 | `post-N` / `postN`     | `postN`          |
 
 ```
-v2026.04.0-r1     → 2026.04.0.post1
-v2026.04.0.rev2   → 2026.04.0.post2
-v2026.04.0.post-3 → 2026.04.0.post3
-v2026.04.0.post3  → 2026.04.0.post3
+v2026.04.0-r1     â†’ 2026.04.0.post1
+v2026.04.0.rev2   â†’ 2026.04.0.post2
+v2026.04.0.post-3 â†’ 2026.04.0.post3
+v2026.04.0.post3  â†’ 2026.04.0.post3
 ```
 
 ### Dev suffixes (`dev`)
@@ -186,9 +186,9 @@ v2026.04.0.post3  → 2026.04.0.post3
 | `dev-N` / `devN`| `devN`           |
 
 ```
-v2026.04.0.dev    → 2026.04.0.dev0
-v2026.04.0.dev-4  → 2026.04.0.dev4
-v2026.04.0.dev4   → 2026.04.0.dev4
+v2026.04.0.dev    â†’ 2026.04.0.dev0
+v2026.04.0.dev-4  â†’ 2026.04.0.dev4
+v2026.04.0.dev4   â†’ 2026.04.0.dev4
 ```
 
 ### Local version segment (`+`)
@@ -197,8 +197,8 @@ A `+local` segment on a tag is preserved as-is. PEP 440 normalises
 underscores to dots within local identifiers:
 
 ```
-v2026.04.0+abc            → 2026.04.0+abc
-v2026.04.0+linux.x86_64   → 2026.04.0+linux.x86.64
+v2026.04.0+abc            â†’ 2026.04.0+abc
+v2026.04.0+linux.x86_64   â†’ 2026.04.0+linux.x86.64
 ```
 
 > **Note:** The `+local` segment on a *tag* is distinct from the `+dirty`
@@ -210,21 +210,21 @@ v2026.04.0+linux.x86_64   → 2026.04.0+linux.x86.64
 All segments can be combined and are each normalised independently:
 
 ```
-v2026.04.0rc1.post2.dev3+local → 2026.04.0rc1.post2.dev3+local
+v2026.04.0rc1.post2.dev3+local â†’ 2026.04.0rc1.post2.dev3+local
 ```
 
 ---
 
 ## Configuration
 
-Add a `[tool.calver_scm]` section to `pyproject.toml` to customise behaviour. All fields are optional — the defaults shown below are sensible for most projects.
+Add a `[tool.calver-scm]` section to `pyproject.toml` to customise behaviour. All fields are optional â€” the defaults shown below are sensible for most projects.
 
 ```toml
-[tool.calver_scm]
+[tool.calver-scm]
 mode       = "month"   # "year" | "month" | "week" | "day"
 scheme     = "YYYY.0M" # optional token scheme; defaults from mode
 patch      = true      # auto-increment patch within a period
-fallback   = "dev"     # "dev" | "date" — when no tag exists
+fallback   = "dev"     # "dev" | "date" â€” when no tag exists
 tag_prefix = "v"       # prefix stripped when reading tags
 timezone   = "UTC"     # "UTC" (default), "local", or IANA tz name
 ```
@@ -245,31 +245,31 @@ Supported `scheme` tokens follow CalVer terminology: `YYYY`, `YY`, `0Y`, `MM`,
 
 Controls the time granularity of the version base.
 
-- `"year"` — base is `YYYY` (e.g. `2026`)
-- `"month"` — base is `YYYY.MM` (e.g. `2026.04`)
-- `"week"` — base is `YYYY.WW` (e.g. `2026.16`)
-- `"day"` — base is `YYYY.MM.DD` (e.g. `2026.04.15`)
+- `"year"` â€” base is `YYYY` (e.g. `2026`)
+- `"month"` â€” base is `YYYY.MM` (e.g. `2026.04`)
+- `"week"` â€” base is `YYYY.WW` (e.g. `2026.16`)
+- `"day"` â€” base is `YYYY.MM.DD` (e.g. `2026.04.15`)
 
 ```toml
-# Year mode — annual cadence
-[tool.calver_scm]
+# Year mode â€” annual cadence
+[tool.calver-scm]
 mode = "year"
-# -> 2026.0, 2026.1.dev3 …
+# -> 2026.0, 2026.1.dev3 â€¦
 
-# Month mode (default) — good for most projects
-[tool.calver_scm]
+# Month mode (default) â€” good for most projects
+[tool.calver-scm]
 mode = "month"
-# → 2026.04.0, 2026.04.1.dev3, 2026.05.0.dev1 …
+# â†’ 2026.04.0, 2026.04.1.dev3, 2026.05.0.dev1 â€¦
 
-# Week mode — weekly cadence
-[tool.calver_scm]
+# Week mode â€” weekly cadence
+[tool.calver-scm]
 mode = "week"
-# -> 2026.16.0, 2026.16.1.dev2 …
+# -> 2026.16.0, 2026.16.1.dev2 â€¦
 
-# Day mode — useful for projects that release frequently
-[tool.calver_scm]
+# Day mode â€” useful for projects that release frequently
+[tool.calver-scm]
 mode = "day"
-# → 2026.04.15.0, 2026.04.15.1.dev2, 2026.04.16.0.dev1 …
+# â†’ 2026.04.15.0, 2026.04.15.1.dev2, 2026.04.16.0.dev1 â€¦
 ```
 
 ### `scheme`
@@ -278,16 +278,16 @@ Defines the date portion explicitly using CalVer tokens.
 
 ```toml
 # Explicitly match the default month style
-[tool.calver_scm]
+[tool.calver-scm]
 scheme = "YYYY.0M"
 
 # Short year + month
-[tool.calver_scm]
+[tool.calver-scm]
 scheme = "YY.0M"
 # -> 26.04.0, 26.04.1.dev3
 
 # Year + ISO week (week schemes are month/day-exclusive)
-[tool.calver_scm]
+[tool.calver-scm]
 scheme = "YYYY.0W"
 # -> 2026.16.0, 2026.16.1.dev2
 ```
@@ -297,34 +297,34 @@ scheme = "YYYY.0W"
 When `true`, the patch number increments from the last tag within the same period. When `false`, patch is always `0` and only the `.devN` distance distinguishes pre-release builds.
 
 ```toml
-# patch = true (default) — each build within a period gets a unique patch number
-[tool.calver_scm]
+# patch = true (default) â€” each build within a period gets a unique patch number
+[tool.calver-scm]
 patch = true
-# tag v2026.04.2, then 3 commits later → 2026.04.3.dev3
+# tag v2026.04.2, then 3 commits later â†’ 2026.04.3.dev3
 
-# patch = false — patch stays 0, only devN changes
-[tool.calver_scm]
+# patch = false â€” patch stays 0, only devN changes
+[tool.calver-scm]
 patch = false
-# tag v2026.04.2, then 3 commits later → 2026.04.0.dev3
+# tag v2026.04.2, then 3 commits later â†’ 2026.04.0.dev3
 ```
 
 ### `fallback`
 
 Controls what happens when no tag exists yet in the repository.
 
-- `"dev"` — emits `YYYY.MM.0.devN` where N is the total commit count *(default)*
-- `"date"` — emits `YYYY.MM.0` with no dev segment, useful for initial releases
+- `"dev"` â€” emits `YYYY.MM.0.devN` where N is the total commit count *(default)*
+- `"date"` â€” emits `YYYY.MM.0` with no dev segment, useful for initial releases
 
 ```toml
-# fallback = "dev" (default) — makes it clear this is a pre-release build
-[tool.calver_scm]
+# fallback = "dev" (default) â€” makes it clear this is a pre-release build
+[tool.calver-scm]
 fallback = "dev"
-# 12 commits, no tag yet → 2026.04.0.dev12
+# 12 commits, no tag yet â†’ 2026.04.0.dev12
 
-# fallback = "date" — emits a clean version even before the first tag
-[tool.calver_scm]
+# fallback = "date" â€” emits a clean version even before the first tag
+[tool.calver-scm]
 fallback = "date"
-# 12 commits, no tag yet → 2026.04.0
+# 12 commits, no tag yet â†’ 2026.04.0
 ```
 
 ### `tag_prefix`
@@ -332,16 +332,16 @@ fallback = "date"
 The string that must prefix a tag for it to be recognised as a CalVer tag. Set to `""` if your tags have no prefix.
 
 ```toml
-# tag_prefix = "v" (default) — tags like v2026.04.0
-[tool.calver_scm]
+# tag_prefix = "v" (default) â€” tags like v2026.04.0
+[tool.calver-scm]
 tag_prefix = "v"
 
-# No prefix — tags like 2026.04.0
-[tool.calver_scm]
+# No prefix â€” tags like 2026.04.0
+[tool.calver-scm]
 tag_prefix = ""
 
-# Custom prefix — tags like release-2026.04.0
-[tool.calver_scm]
+# Custom prefix â€” tags like release-2026.04.0
+[tool.calver-scm]
 tag_prefix = "release-"
 ```
 
@@ -349,21 +349,21 @@ tag_prefix = "release-"
 
 Controls which timezone is used to compute the date segment.
 
-- `"UTC"` — default; deterministic across environments
-- `"local"` — machine local timezone
+- `"UTC"` â€” default; deterministic across environments
+- `"local"` â€” machine local timezone
 - Any valid IANA timezone, e.g. `"Europe/London"`, `"America/New_York"`
 
 ```toml
 # Default, recommended for CI/reproducibility
-[tool.calver_scm]
+[tool.calver-scm]
 timezone = "UTC"
 
 # Use host local timezone
-[tool.calver_scm]
+[tool.calver-scm]
 timezone = "local"
 
 # Explicit IANA timezone
-[tool.calver_scm]
+[tool.calver-scm]
 timezone = "Pacific/Auckland"
 ```
 
@@ -371,7 +371,7 @@ timezone = "Pacific/Auckland"
 
 ## Environment variable overrides
 
-Every option can be overridden at build time without touching `pyproject.toml` — handy for CI pipelines.
+Every option can be overridden at build time without touching `pyproject.toml` â€” handy for CI pipelines.
 
 | Variable                | Equivalent option          |
 |-------------------------|----------------------------|
@@ -412,9 +412,9 @@ local_scheme   = "dirty-tag"         # +dirty on uncommitted changes (recommende
 
 ## Requirements
 
-- Python ≥ 3.10
-- setuptools-scm ≥ 10.0.5
-- `tomli` ≥ 2.4.1 on Python < 3.11 (the stdlib `tomllib` is used on 3.11+)
+- Python â‰¥ 3.10
+- setuptools-scm â‰¥ 10.0.5
+- `tomli` â‰¥ 2.4.1 on Python < 3.11 (the stdlib `tomllib` is used on 3.11+)
 
 ---
 

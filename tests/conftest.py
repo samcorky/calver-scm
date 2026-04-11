@@ -86,7 +86,7 @@ def write_pyproject(tmp_path: Path) -> Callable[[str], Path]:
                 'name = "demo"',
                 'version = "0.0.0"',
                 "",
-                "[tool.calver_scm]",
+                "[tool.calver-scm]",
                 tool_calver_block.strip(),
                 "",
             ]

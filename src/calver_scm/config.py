@@ -206,7 +206,7 @@ def _load_calver_config(root: Path) -> CalverConfig:
         try:
             with pyproject.open("rb") as f:
                 toml_data = tomllib.load(f)
-            data = toml_data.get("tool", {}).get("calver_scm", {})
+            data = toml_data.get("tool", {}).get("calver-scm", {})
         except tomllib.TOMLDecodeError as e:
             raise RuntimeError(f"Invalid pyproject.toml: {e}") from e
 

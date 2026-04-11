@@ -144,7 +144,7 @@ def test_load_calver_config_reads_pyproject_and_env(
     (tmp_path / "pyproject.toml").write_text(
         "\n".join(
             [
-                "[tool.calver_scm]",
+                "[tool.calver-scm]",
                 'mode = "month"',
                 'fallback = "dev"',
                 'tag_prefix = "v"',
@@ -168,7 +168,7 @@ def test_load_calver_config_defaults_when_file_missing(tmp_path: Path) -> None:
 
 def test_load_calver_config_raises_for_invalid_toml(tmp_path: Path) -> None:
     """Wrap TOML decode failures in a runtime error message."""
-    (tmp_path / "pyproject.toml").write_text("[tool.calver_scm\n", encoding="utf-8")
+    (tmp_path / "pyproject.toml").write_text("[tool.calver-scm\n", encoding="utf-8")
     with pytest.raises(RuntimeError, match=r"Invalid pyproject\.toml"):
         _load_calver_config(tmp_path)
 
@@ -176,7 +176,7 @@ def test_load_calver_config_raises_for_invalid_toml(tmp_path: Path) -> None:
 def test_load_calver_config_raises_for_invalid_config(tmp_path: Path) -> None:
     """Wrap config validation failures in a runtime error message."""
     (tmp_path / "pyproject.toml").write_text(
-        "\n".join(["[tool.calver_scm]", 'mode = "bad"']),
+        "\n".join(["[tool.calver-scm]", 'mode = "bad"']),
         encoding="utf-8",
     )
     with pytest.raises(RuntimeError, match="Invalid config"):
