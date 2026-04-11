@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, cast
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -26,8 +26,7 @@ def make_version() -> Callable[[str], CalverVersion]:
 
 @pytest.fixture(params=["month", "day"])
 def mode(request: pytest.FixtureRequest) -> Mode:
-    """Yield both supported formatting modes."""
-    return request.param
+    return cast("Mode", request.param)
 
 
 @pytest.mark.parametrize(
