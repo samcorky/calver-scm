@@ -3,11 +3,12 @@ name: Publish
 on:
   release:
     types: [published]
+  workflow_dispatch:
 
 jobs:
   run:
     name: Build and publish to PyPI
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment:
       name: pypi
@@ -42,4 +43,5 @@ jobs:
         run: uv run --isolated --no-project --with dist/*.tar.gz --with pytest pytest -o addopts='--tb=short --strict-markers --strict-config'
 
       - name: Publish
+        if: github.event_name == 'release'
         run: uv publish
