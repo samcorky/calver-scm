@@ -6,7 +6,8 @@ ci:
     [pre-commit.ci] pre-commit autoupdate
   autoupdate_schedule: monthly
   skip:
-    - renovate-config-validator
+    - renovate-config-validator # too large, automatically checks on renovate/reconfigure branches
+    # These are in lint.yml and format.yml, so we don't need to run them here as well
     - mypy
     - ruff-check
     - ruff-format
@@ -23,8 +24,20 @@ repos:
       - id: check-toml
       - id: check-json
       - id: check-ast
+      - id: fix-byte-order-marker
       - id: check-case-conflict
       - id: check-merge-conflict
+      - id: no-commit-to-branch
+        args:
+          - --branch=main
+      - id: name-tests-test
+        args:
+          - --pytest-test-first
+      - id: pretty-format-json
+        args:
+          - --autofix
+          - --no-sort-keys
+      - id: check-added-large-files
 
   - repo: https://github.com/renovatebot/pre-commit-hooks
     rev: 43.110.8
@@ -38,6 +51,11 @@ repos:
     hooks:
       - id: validate-pyproject
         files: ^pyproject\.toml$
+
+  - repo: https://github.com/crate-ci/typos
+    rev: v1.38.1
+    hooks:
+      - id: typos
 
   - repo: local
     hooks:

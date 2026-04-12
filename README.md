@@ -1,4 +1,4 @@
-﻿<div align="center">
+<div align="center">
 
 # calver-scm
 
@@ -458,4 +458,4 @@ Pull requests and issues are welcome!
 [uv-link]: https://github.com/astral-sh/uv
 [mypy-link]: https://mypy-lang.org/
 [precommit-link]: https://results.pre-commit.ci/latest/github/samcorky/calver-scm/main
-[license-link]: https://github.com/samcorky/calver-scm/blob/main/LICENSE
+[license-link]: LICENSE

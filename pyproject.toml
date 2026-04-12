@@ -1,8 +1,7 @@
 [project]
 name = "calver-scm"
-dynamic = ["version"]
+dynamic = ["version", "readme"]
 description = "Automatic, configurable CalVer versioning for setuptools-scm — no manual bumping required"
-readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "setuptools-scm>=10.0.5",
@@ -61,11 +60,43 @@ Changelog = "https://github.com/samcorky/calver-scm/releases"
 required-version = ">=0.7.10"
 
 [build-system]
-requires = ["hatchling>=1.29.0", "hatch-vcs>=0.5.0"]
+requires = ["hatchling>=1.29.0", "hatch-vcs>=0.5.0", "hatch-fancy-pypi-readme>=24.1.0"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/calver_scm"]
+
+[tool.hatch.metadata.hooks.fancy-pypi-readme]
+content-type = "text/markdown"
+
+# Title block: project name + version injected from packaging metadata.
+# Replaces the badge-heavy <div> header stripped below.
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.fragments]]
+text = "# $HFPR_PACKAGE_NAME $HFPR_VERSION\n\n"
+
+# Fragment 1: skip the badge-heavy <div> header (redundant on PyPI — version,
+# Python versions and licence are shown natively in the PyPI sidebar).
+# Start from the intro paragraph and stop before the Contributing dev-setup block.
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.fragments]]
+path = "README.md"
+start-after = "</div>"
+end-before = "\n## Contributing"
+
+# Fragment 2: jump straight to License, skipping the dev setup block
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.fragments]]
+path = "README.md"
+start-at = "\n## License"
+
+# Rewrite any relative inline Markdown links/images to absolute GitHub URLs so they
+# resolve correctly on PyPI (where there is no base URL context).
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.substitutions]]
+pattern = '\[(.+?)\]\(((?!https?://)(?!#)\S+?)\)'
+replacement = '[\1](https://github.com/samcorky/calver-scm/blob/main/\2)'
+
+# Same for reference-style link definitions: [id]: relative/path
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.substitutions]]
+pattern = '(?m)^\[([^\]]+)\]: ((?!https?://)(?!#)\S+)$'
+replacement = '[\1]: https://github.com/samcorky/calver-scm/blob/main/\2'
 
 [tool.hatch.version]
 source = "vcs"
