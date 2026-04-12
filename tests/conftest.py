@@ -47,7 +47,7 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
 
 
 @pytest.fixture(autouse=True)
-def clear_config_cache() -> Generator[None, None, None]:
+def clear_config_cache() -> Generator[None]:
     """Clear cached config reads between tests for deterministic behaviour."""
     _load_calver_config.cache_clear()
     yield
