@@ -5,6 +5,8 @@ on:
     types: [opened, synchronize, reopened]
     paths:
       - ".github/workflows/lint.yml"
+      - ".pre-commit-config.yaml"
+      - "_typos.toml"
       - "pyproject.toml"
       - "uv.lock"
       - "src/**"
@@ -13,7 +15,7 @@ on:
 
 jobs:
   lint:
-    name: Ruff + Mypy
+    name: Ruff + Mypy + Typos
     runs-on: ubuntu-latest
 
     steps:
@@ -35,3 +37,6 @@ jobs:
 
       - name: Run Mypy
         run: uv run mypy .
+
+      - name: Run Typos
+        run: uv run pre-commit run typos --all-files

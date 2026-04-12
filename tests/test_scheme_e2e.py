@@ -94,7 +94,7 @@ def test_calver_scm_fallback_when_no_tag_in_date_mode(
     assert calver_scm(version) == "2026.04.0"
 
 
-def test_calver_scm_fallback_for_unparseable_or_incompatible_tag(
+def test_calver_scm_fallback_for_unparsable_or_incompatible_tag(
     write_pyproject: Callable[[str], Path],
     make_scm_version: Callable[..., Any],
     monkeypatch: pytest.MonkeyPatch,

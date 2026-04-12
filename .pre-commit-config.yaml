@@ -20,6 +20,7 @@ repos:
       - id: check-toml
       - id: check-json
       - id: check-ast
+      - id: fix-byte-order-marker
       - id: check-case-conflict
       - id: check-merge-conflict
 
@@ -35,6 +36,11 @@ repos:
     hooks:
       - id: validate-pyproject
         files: ^pyproject\.toml$
+
+  - repo: https://github.com/crate-ci/typos
+    rev: v1.38.1
+    hooks:
+      - id: typos
 
   - repo: local
     hooks:
