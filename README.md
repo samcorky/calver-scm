@@ -217,7 +217,7 @@ v2026.04.0rc1.post2.dev3+local â†’ 2026.04.0rc1.post2.dev3+local
 
 ## Configuration
 
-Add a `[tool.calver-scm]` section to `pyproject.toml` to customise behaviour. All fields are optional â€” the defaults shown below are sensible for most projects.
+Add a `[tool.calver-scm]` section to `pyproject.toml` to customise behaviour. All fields are optional, and the defaults shown below are sensible for most projects.
 
 ```toml
 [tool.calver-scm]
