@@ -17,17 +17,30 @@
     ":combinePatchMinorReleases",
     "security:openssf-scorecard"
   ],
-  "enabledManagers": ["pep621", "github-actions"],
+  "enabledManagers": [
+    "pep621",
+    "github-actions"
+  ],
   "prHourlyLimit": 5,
   "prConcurrentLimit": 5,
-  "schedule": ["before 9am on Monday"],
+  "schedule": [
+    "before 9am on Monday"
+  ],
   "timezone": "Europe/London",
   "pruneStaleBranches": true,
   "packageRules": [
     {
-      "matchManagers": ["pep621"],
-      "matchDepTypes": ["project.dependencies", "build-system.requires"],
-      "matchUpdateTypes": ["minor", "patch"],
+      "matchManagers": [
+        "pep621"
+      ],
+      "matchDepTypes": [
+        "project.dependencies",
+        "build-system.requires"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
       "groupName": "runtime dependencies",
       "commitMessageAction": "Update",
       "commitMessageTopic": "runtime deps",
@@ -36,9 +49,16 @@
       "automergeType": "pr"
     },
     {
-      "matchManagers": ["pep621"],
-      "matchDepTypes": ["dependency-groups"],
-      "matchUpdateTypes": ["minor", "patch"],
+      "matchManagers": [
+        "pep621"
+      ],
+      "matchDepTypes": [
+        "dependency-groups"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
       "groupName": "dev dependencies",
       "commitMessageAction": "Update",
       "commitMessageTopic": "dev deps",
@@ -47,8 +67,13 @@
       "automergeType": "pr"
     },
     {
-      "matchManagers": ["github-actions"],
-      "matchUpdateTypes": ["minor", "patch"],
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
       "groupName": "GitHub Actions",
       "commitMessageAction": "Update",
       "commitMessageTopic": "GitHub Actions",
@@ -57,7 +82,9 @@
       "automergeType": "pr"
     },
     {
-      "matchUpdateTypes": ["lockFileMaintenance"],
+      "matchUpdateTypes": [
+        "lockFileMaintenance"
+      ],
       "groupName": "lockfile maintenance",
       "commitMessageAction": "Update",
       "commitMessageTopic": "lockfiles",

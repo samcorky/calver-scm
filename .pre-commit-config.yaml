@@ -31,7 +31,12 @@ repos:
         args:
           - --branch=main
       - id: name-tests-test
+        args:
+          - --pytest-test-first
       - id: pretty-format-json
+        args:
+          - --autofix
+          - --no-sort-keys
       - id: check-added-large-files
 
   - repo: https://github.com/renovatebot/pre-commit-hooks
