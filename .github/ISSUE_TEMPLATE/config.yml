@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability report
+    url: https://github.com/samcorky/calver-scm/security/advisories/new
+    about: Report suspected vulnerabilities privately. Please do not open public issues for security reports.

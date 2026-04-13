@@ -1,0 +1,69 @@
+name: Feature request
+description: Suggest an improvement or new capability for calver-scm
+title: "feat: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting an improvement.
+
+        Please explain the problem you are trying to solve and, if relevant, include example `pyproject.toml` configuration or version output.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: A clear and concise description of the feature you are proposing.
+      placeholder: Describe the feature in a sentence or two.
+    validations:
+      required: true
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: What problem does this solve, or what use case does it support?
+      placeholder: Describe the current limitation and why this improvement would help.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-solution
+    attributes:
+      label: Proposed solution
+      description: Describe the behaviour, API, or configuration you would like to see.
+      placeholder: Explain the desired behaviour in as much detail as needed.
+    validations:
+      required: true
+
+  - type: textarea
+    id: example-configuration
+    attributes:
+      label: Example configuration
+      description: Provide example `pyproject.toml` configuration if it helps explain the request.
+      render: toml
+      placeholder: |
+        [tool.setuptools_scm]
+        # ...
+    validations:
+      required: false
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Have you considered any workarounds or alternative approaches?
+      placeholder: Describe alternatives and why the proposed solution is preferable.
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional context
+      description: Add any supporting context, links, prior art, or related issues.
+      placeholder: Share any extra context that may help shape the request.
+    validations:
+      required: false
