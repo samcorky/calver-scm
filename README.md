@@ -46,6 +46,7 @@ Versions look like this:
 - [Local scheme](#local-scheme)
 - [Requirements](#requirements)
 - [Contributing](#contributing)
+- [Security](#security)
 
 ## Installation
 
@@ -428,7 +429,13 @@ pre-commit install
 pytest
 ```
 
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for full contribution guidance.
+
 Pull requests and issues are welcome!
+
+## Security
+
+Please report vulnerabilities privately via [`SECURITY.md`](SECURITY.md).
 
 ---
 

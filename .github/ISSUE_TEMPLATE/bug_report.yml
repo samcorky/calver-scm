@@ -1,0 +1,116 @@
+name: Bug report
+description: Report incorrect or unexpected behaviour in calver-scm
+title: "bug: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug.
+
+        Please provide a minimal, reproducible example where possible. For security issues, do **not** open a public issue — use the private reporting guidance in `SECURITY.md` instead.
+
+  - type: textarea
+    id: bug-description
+    attributes:
+      label: Describe the bug
+      description: A clear and concise description of the problem.
+      placeholder: Tell us what is going wrong.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behaviour
+    attributes:
+      label: Expected behaviour
+      description: What did you expect to happen?
+      placeholder: Describe the expected version output or behaviour.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual-behaviour
+    attributes:
+      label: Actual behaviour
+      description: What actually happened? Include the full version string if relevant.
+      placeholder: Describe the actual version output or behaviour.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps-to-reproduce
+    attributes:
+      label: Steps to reproduce
+      description: |
+        Provide a minimal set of steps that reliably reproduces the issue.
+
+        Example:
+        1. Create a Git repository with the tag `2026.04.0`.
+        2. Add one commit after the tag.
+        3. Run `python -m setuptools_scm`.
+        4. Observe the version string produced.
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+      render: shell
+    validations:
+      required: true
+
+  - type: input
+    id: calver-scm-version
+    attributes:
+      label: calver-scm version
+      description: The installed `calver-scm` version.
+      placeholder: e.g. 2026.4.0
+    validations:
+      required: true
+
+  - type: input
+    id: python-version
+    attributes:
+      label: Python version
+      description: The Python version in use.
+      placeholder: e.g. 3.12.3
+    validations:
+      required: true
+
+  - type: input
+    id: operating-system
+    attributes:
+      label: Operating system
+      description: The operating system where the issue occurs.
+      placeholder: e.g. Ubuntu 24.04, Windows 11, macOS 15
+    validations:
+      required: true
+
+  - type: input
+    id: setuptools-scm-version
+    attributes:
+      label: setuptools-scm version
+      description: The installed `setuptools-scm` version, if applicable.
+      placeholder: e.g. 8.1.0
+    validations:
+      required: false
+
+  - type: textarea
+    id: pyproject-configuration
+    attributes:
+      label: Relevant `pyproject.toml` configuration
+      description: Paste the relevant `[tool.setuptools_scm]` or `[tool.hatch.version]` block.
+      render: toml
+      placeholder: |
+        [tool.setuptools_scm]
+        # ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional context
+      description: Add any other context, such as stack traces, related issues, or screenshots.
+      placeholder: Share anything else that may help us triage the issue.
+    validations:
+      required: false
