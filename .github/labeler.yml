@@ -1,0 +1,44 @@
+max-files-changed: 100
+changed-files-labels-limit: 20
+
+area/source:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "src/**"
+
+area/tests:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "tests/**"
+
+area/ci:
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".github/workflows/**"
+          - ".pre-commit-config.yaml"
+          - ".github/renovate.json"
+
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "README.md"
+          - "CONTRIBUTING.md"
+          - "SECURITY.md"
+          - "CODE_OF_CONDUCT.md"
+          - ".github/ISSUE_TEMPLATE/**"
+          - ".github/pull_request_template.md"
+
+dependencies:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "pyproject.toml"
+          - "uv.lock"
+          - ".github/renovate.json"
+
+area/packaging:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "pyproject.toml"
+          - "src/**"
+          - ".github/workflows/build-dist.yml"
+          - ".github/workflows/publish.yml"
