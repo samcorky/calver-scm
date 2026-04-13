@@ -1,8 +1,9 @@
 name: Feature request
 description: Suggest an improvement or new capability for calver-scm
-title: "feat: "
+title: "[feature]: "
 labels:
   - enhancement
+type: feature
 body:
   - type: markdown
     attributes:
