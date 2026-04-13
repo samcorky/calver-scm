@@ -64,6 +64,12 @@ repos:
         args:
           - --py310-plus
 
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.8
+    hooks:
+      - id: actionlint
+        files: ^\.github/workflows/.*\.ya?ml$
+
   - repo: local
     hooks:
       - id: ruff-check
