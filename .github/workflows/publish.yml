@@ -4,11 +4,12 @@ on:
   release:
     types: [published]
 
+permissions:
+  contents: read
+
 jobs:
   build-and-test:
     uses: ./.github/workflows/build-dist.yml
-    permissions:
-      contents: read
 
   publish:
     name: Publish to PyPI
@@ -19,7 +20,6 @@ jobs:
       name: pypi
     permissions:
       id-token: write
-      contents: read
       attestations: write
     steps:
       - name: Install uv

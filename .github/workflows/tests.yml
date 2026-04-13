@@ -22,6 +22,9 @@ on:
       - "tests/**"
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   tests:
     name: Python ${{ matrix.python-version }}
