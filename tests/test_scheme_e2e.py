@@ -128,6 +128,26 @@ def test_calver_scm_honors_custom_tag_prefix(
     assert calver_scm(version) == "2026.04.2"
 
 
+def test_clean_checkout_preserves_local_tag_segment(
+    write_pyproject: Callable[[str], Path],
+    make_scm_version: Callable[..., Any],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Preserve tag local metadata on clean checkouts, including normalisation."""
+    root = write_pyproject('mode = "month"')
+    monkeypatch.setattr(
+        "calver_scm.scheme._today_in_timezone",
+        lambda _tz: dt.date(2026, 4, 15),
+    )
+    version = make_scm_version(
+        root=root,
+        tag="v2026.04.2+linux.x86_64",
+        distance=0,
+        dirty=False,
+    )
+    assert calver_scm(version) == "2026.04.2+linux.x86.64"
+
+
 def test_semver_tag_in_history_rolls_forward_to_calver_dev_version(
     write_pyproject: Callable[[str], Path],
     make_scm_version: Callable[..., Any],

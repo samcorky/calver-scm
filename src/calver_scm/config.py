@@ -145,7 +145,7 @@ class CalverConfig:
 
     @classmethod
     def _validate_scheme_tokens(cls, tokens: tuple[str, ...]) -> None:
-        """Validate that token sequence is supported and internally consistent."""
+        """Validate that a token sequence is supported and internally consistent."""
         if any(token not in cls._ALLOWED_SCHEME_TOKENS for token in tokens):
             raise ValueError("Invalid scheme")
 
