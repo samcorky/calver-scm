@@ -90,4 +90,3 @@ def test_release_components_accepts_unstable_mode_with_legacy_unprefixed_tag() -
     parsed = _parse_tag("v2026.04.3", cfg)
     assert parsed is not None
     assert _release_components(parsed, cfg) == ((2026, 4), 3)
-
