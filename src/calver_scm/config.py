@@ -8,6 +8,17 @@ from functools import lru_cache
 from typing import TYPE_CHECKING, Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+if TYPE_CHECKING:
+    from pathlib import Path
+
+if sys.version_info >= (3, 11):  # pragma: no cover
+    # noinspection PyCompatibility
+    import tomllib
+else:  # pragma: no cover
+    # noinspection SpellCheckingInspection
+    import tomli as tomllib
+
+
 TRUE_ENV_VALUES = frozenset(("1", "true", "yes", "on"))
 FALSE_ENV_VALUES = frozenset(("0", "false", "no", "off"))
 
@@ -50,17 +61,6 @@ class FallbackMode(_StrEnum):
             return cls(value)
         except ValueError as e:
             raise ValueError(f"Invalid fallback: {value!r}") from e
-
-
-if TYPE_CHECKING:
-    from pathlib import Path
-
-if sys.version_info >= (3, 11):  # pragma: no cover
-    # noinspection PyCompatibility
-    import tomllib
-else:  # pragma: no cover
-    # noinspection SpellCheckingInspection
-    import tomli as tomllib
 
 
 @dataclass(frozen=True, slots=True)
