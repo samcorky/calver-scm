@@ -436,17 +436,6 @@ Every option can be overridden at build time without touching `pyproject.toml`, 
 
 Environment variables take precedence over `pyproject.toml`.
 
-> **Migration note:** Environment variable names were renamed from
-> `SCM_CALVER_*` to `CALVER_SCM_*`.
->
-> - `SCM_CALVER_MODE` -> `CALVER_SCM_MODE`
-> - `SCM_CALVER_SCHEME` -> `CALVER_SCM_SCHEME`
-> - `SCM_CALVER_PATCH` -> `CALVER_SCM_PATCH`
-> - `SCM_CALVER_STABLE` -> `CALVER_SCM_STABLE`
-> - `SCM_CALVER_FALLBACK` -> `CALVER_SCM_FALLBACK`
-> - `SCM_CALVER_TAG_PREFIX` -> `CALVER_SCM_TAG_PREFIX`
-> - `SCM_CALVER_TIMEZONE` -> `CALVER_SCM_TIMEZONE`
-
 ---
 
 ## Local scheme

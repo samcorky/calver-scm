@@ -147,17 +147,6 @@ def test_overlay_env_accepts_truthy_stable_value(
     assert cfg.stable is True
 
 
-def test_overlay_env_ignores_legacy_scm_calver_variable_names(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Ignore deprecated SCM_CALVER_* env vars during migration to CALVER_SCM_*."""
-    base = CalverConfig(mode=CalverMode.MONTH)
-    monkeypatch.setenv("SCM_CALVER_MODE", "day")
-
-    cfg = CalverConfig.overlay_env(base)
-    assert cfg.mode is CalverMode.MONTH
-
-
 def test_load_calver_config_reads_pyproject_and_env(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
