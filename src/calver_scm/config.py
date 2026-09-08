@@ -65,10 +65,10 @@ class FallbackMode(_StrEnum):
 
 
 # CalVer token group constants (global, immutable)
-YEAR_TOKENS = frozenset({"YYYY", "YY", "0Y"})
-MONTH_TOKENS = frozenset({"MM", "0M"})
-WEEK_TOKENS = frozenset({"WW", "0W"})
-DAY_TOKENS = frozenset({"DD", "0D"})
+YEAR_TOKENS = frozenset({"YYYY", "YY"})
+MONTH_TOKENS = frozenset({"MM"})
+WEEK_TOKENS = frozenset({"WW"})
+DAY_TOKENS = frozenset({"DD"})
 ALL_TOKENS = YEAR_TOKENS | MONTH_TOKENS | WEEK_TOKENS | DAY_TOKENS
 # Granularity mapping: 0=year, 1=month/week, 2=day
 TOKEN_GRANULARITY = MappingProxyType(
@@ -147,10 +147,10 @@ class CalverConfig:
         if self.mode == CalverMode.YEAR:
             return ("YYYY",)
         if self.mode == CalverMode.WEEK:
-            return "YYYY", "0W"
+            return "YYYY", "WW"
         if self.mode == CalverMode.DAY:
-            return "YYYY", "0M", "0D"
-        return "YYYY", "0M"
+            return "YYYY", "MM", "DD"
+        return "YYYY", "MM"
 
     @classmethod
     def _validate_scheme_tokens(cls, tokens: tuple[str, ...]) -> None:

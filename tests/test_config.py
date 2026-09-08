@@ -31,9 +31,9 @@ def test_enum_from_raw_accepts_instances_and_strings() -> None:
     ("mode", "expected"),
     [
         (CalverMode.YEAR, ("YYYY",)),
-        (CalverMode.MONTH, ("YYYY", "0M")),
-        (CalverMode.WEEK, ("YYYY", "0W")),
-        (CalverMode.DAY, ("YYYY", "0M", "0D")),
+        (CalverMode.MONTH, ("YYYY", "MM")),
+        (CalverMode.WEEK, ("YYYY", "WW")),
+        (CalverMode.DAY, ("YYYY", "MM", "DD")),
     ],
 )
 def test_scheme_tokens_default_from_mode(
@@ -46,8 +46,8 @@ def test_scheme_tokens_default_from_mode(
 
 def test_scheme_tokens_from_explicit_scheme() -> None:
     """Split explicit scheme strings into token tuples."""
-    cfg = CalverConfig(scheme="YYYY.0M.0D")
-    assert cfg.scheme_tokens == ("YYYY", "0M", "0D")
+    cfg = CalverConfig(scheme="YYYY.MM.DD")
+    assert cfg.scheme_tokens == ("YYYY", "MM", "DD")
 
 
 @pytest.mark.parametrize(
@@ -57,8 +57,8 @@ def test_scheme_tokens_from_explicit_scheme() -> None:
         {"fallback": "invalid"},
         {"scheme": 123},
         {"scheme": "YYYY.BAD"},
-        {"scheme": "0M.0D"},
-        {"scheme": "YYYY.0W.0D"},
+        {"scheme": "MM.DD"},
+        {"scheme": "YYYY.WW.DD"},
         {"patch": "true"},
         {"stable": "false"},
         {"tag_prefix": 1},
@@ -94,7 +94,7 @@ def test_overlay_env_overrides_values(monkeypatch: pytest.MonkeyPatch) -> None:
         tag_prefix="v",
     )
     monkeypatch.setenv("CALVER_SCM_MODE", "day")
-    monkeypatch.setenv("CALVER_SCM_SCHEME", "YYYY.0M.0D")
+    monkeypatch.setenv("CALVER_SCM_SCHEME", "YYYY.MM.DD")
     monkeypatch.setenv("CALVER_SCM_PATCH", "off")
     monkeypatch.setenv("CALVER_SCM_STABLE", "no")
     monkeypatch.setenv("CALVER_SCM_FALLBACK", "date")
@@ -103,7 +103,7 @@ def test_overlay_env_overrides_values(monkeypatch: pytest.MonkeyPatch) -> None:
 
     cfg = CalverConfig.overlay_env(base)
     assert cfg.mode is CalverMode.DAY
-    assert cfg.scheme == "YYYY.0M.0D"
+    assert cfg.scheme == "YYYY.MM.DD"
     assert cfg.patch is False
     assert cfg.stable is False
     assert cfg.fallback is FallbackMode.DATE
@@ -202,14 +202,14 @@ def test_load_calver_config_raises_for_invalid_config(tmp_path: Path) -> None:
     [
         ("DD.YYYY", "Tokens must be ordered: year"),  # day before year
         (
-            "0M.YYYY.0D",
+            "MM.YYYY.DD",
             "Tokens must be ordered: year",
         ),  # month before year, day after year
-        ("YYYY.DD.0M", "Tokens must be ordered: year"),  # day before month
-        ("0D.0M.YYYY", "Tokens must be ordered: year"),  # day before month before year
-        ("0W.YYYY", "Tokens must be ordered: year"),  # week before year
+        ("YYYY.DD.MM", "Tokens must be ordered: year"),  # day before month
+        ("DD.MM.YYYY", "Tokens must be ordered: year"),  # day before month before year
+        ("WW.YYYY", "Tokens must be ordered: year"),  # week before year
         (
-            "0D.YYYY.0W",
+            "DD.YYYY.WW",
             "week tokens cannot be combined with month/day tokens",
         ),  # week/month-day mix
     ],
@@ -227,12 +227,12 @@ def test_scheme_token_order_enforced(scheme: str, expected: str) -> None:
     "scheme",
     [
         "YYYY",
-        "YYYY.0M",
-        "YYYY.0M.0D",
-        "YYYY.0W",
+        "YYYY.MM",
+        "YYYY.MM.DD",
+        "YYYY.WW",
         "YY.MM.DD",
-        "0Y.0W",
-        "0Y.0M.0D",
+        "YY.WW",
+        "YY.MM",
     ],
 )
 def test_scheme_token_order_valid(scheme: str) -> None:
@@ -247,9 +247,9 @@ def test_scheme_token_order_valid(scheme: str) -> None:
     ("scheme", "expected"),
     [
         ("YYYY.YY", "Only one token per granularity"),  # duplicate year
-        ("YYYY.0M.MM", "Only one token per granularity"),  # duplicate month
-        ("YYYY.0W.WW", "Only one token per granularity"),  # duplicate week
-        ("YYYY.0M.0D.DD", "Only one token per granularity"),  # duplicate day
+        ("YYYY.MM.MM", "Only one token per granularity"),  # duplicate month
+        ("YYYY.WW.WW", "Only one token per granularity"),  # duplicate week
+        ("YYYY.MM.DD.DD", "Only one token per granularity"),  # duplicate day
     ],
 )
 def test_scheme_token_duplicate_granularity_rejected(
@@ -259,4 +259,20 @@ def test_scheme_token_duplicate_granularity_rejected(
     Reject schemes with more than one token per granularity (year, month/week, day).
     """
     with pytest.raises(ValueError, match=expected):
+        CalverConfig(scheme=scheme)
+
+
+@pytest.mark.parametrize(
+    "scheme",
+    [
+        "0Y",
+        "0Y.MM",
+        "YYYY.0M",
+        "YYYY.0W",
+        "YYYY.MM.0D",
+    ],
+)
+def test_scheme_rejects_zero_padded_tokens(scheme: str) -> None:
+    """Reject zero-padded tokens as invalid schemes."""
+    with pytest.raises(ValueError, match="unknown token"):
         CalverConfig(scheme=scheme)
