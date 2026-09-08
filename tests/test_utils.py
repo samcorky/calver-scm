@@ -14,6 +14,7 @@ from calver_scm.utils import (
     _date_parts,
     _fallback_version,
     _format_date_parts,
+    _format_dev_version,
     _is_same_period,
     _today_in_timezone,
     _token_value,
@@ -71,18 +72,57 @@ def test_is_same_period_uses_configured_scheme_tokens() -> None:
 
 
 @pytest.mark.parametrize(
-    ("fallback", "expected"),
+    ("fallback", "no_dev", "expected"),
     [
-        (FallbackMode.DEV, "2026.4.0.dev5"),
-        (FallbackMode.DATE, "2026.4.0"),
+        (FallbackMode.DEV, False, "2026.4.0.dev5"),
+        (FallbackMode.DEV, True, "2026.4.0"),
+        (FallbackMode.DATE, False, "2026.4.0"),
+        (FallbackMode.DATE, True, "2026.4.0"),
     ],
 )
 def test_fallback_version_renders_expected_modes(
     fallback: FallbackMode,
+    no_dev: bool,
     expected: str,
 ) -> None:
-    """Render fallback output for both supported fallback modes."""
-    assert _fallback_version(base="2026.4", distance=5, fallback=fallback) == expected
+    """Render fallback output for supported fallback modes and no_dev flag."""
+    assert (
+        _fallback_version(
+            base="2026.4",
+            distance=5,
+            fallback=fallback,
+            no_dev=no_dev,
+        )
+        == expected
+    )
+
+
+@pytest.mark.parametrize(
+    ("base", "patch", "distance", "no_dev", "expected"),
+    [
+        ("2026.4", 3, 5, False, "2026.4.3.dev5"),
+        ("2026.4", 3, 5, True, "2026.4.3"),
+        ("2026.4", 0, 0, False, "2026.4.0.dev0"),
+        ("2026.4", 0, 0, True, "2026.4.0"),
+    ],
+)
+def test_format_dev_version_respects_no_dev(
+    base: str,
+    patch: int,
+    distance: int,
+    no_dev: bool,
+    expected: str,
+) -> None:
+    """Render dev versions or suppress dev suffix according to no_dev flag."""
+    assert (
+        _format_dev_version(
+            base=base,
+            patch=patch,
+            distance=distance,
+            no_dev=no_dev,
+        )
+        == expected
+    )
 
 
 @pytest.mark.parametrize(

@@ -10,6 +10,7 @@ from calver_scm.utils import (
     _base,
     _fallback_version,
     _format_date_parts,
+    _format_dev_version,
     _is_same_period,
     _today_in_timezone,
 )
@@ -28,7 +29,10 @@ def calver_scm(version: ScmVersion) -> str:
     if version.tag is None:
         return _apply_stability_prefix(
             _fallback_version(
-                base=base, distance=version.distance, fallback=cfg.fallback
+                base=base,
+                distance=version.distance,
+                fallback=cfg.fallback,
+                no_dev=cfg.no_dev,
             ),
             cfg,
         )
@@ -38,7 +42,10 @@ def calver_scm(version: ScmVersion) -> str:
     if parsed is None:
         return _apply_stability_prefix(
             _fallback_version(
-                base=base, distance=version.distance, fallback=cfg.fallback
+                base=base,
+                distance=version.distance,
+                fallback=cfg.fallback,
+                no_dev=cfg.no_dev,
             ),
             cfg,
         )
@@ -48,7 +55,10 @@ def calver_scm(version: ScmVersion) -> str:
     if components is None:
         return _apply_stability_prefix(
             _fallback_version(
-                base=base, distance=version.distance, fallback=cfg.fallback
+                base=base,
+                distance=version.distance,
+                fallback=cfg.fallback,
+                no_dev=cfg.no_dev,
             ),
             cfg,
         )
@@ -65,4 +75,12 @@ def calver_scm(version: ScmVersion) -> str:
     same_period = _is_same_period(today, tag_date_parts, cfg)
     patch = (tag_patch + 1) if same_period and cfg.patch else 0
 
-    return _apply_stability_prefix(f"{base}.{patch}.dev{version.distance}", cfg)
+    return _apply_stability_prefix(
+        _format_dev_version(
+            base=base,
+            patch=patch,
+            distance=version.distance,
+            no_dev=cfg.no_dev,
+        ),
+        cfg,
+    )

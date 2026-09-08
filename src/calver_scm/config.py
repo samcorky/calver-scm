@@ -89,6 +89,7 @@ class CalverConfig:
     scheme: str | None = None
     patch: bool = True
     stable: bool = True
+    no_dev: bool = False
     fallback: FallbackMode = FallbackMode.DEV
     tag_prefix: str = "v"
     timezone: str = "UTC"
@@ -105,6 +106,8 @@ class CalverConfig:
             raise ValueError(f"Invalid patch value: {self.patch!r}")
         if not isinstance(self.stable, bool):
             raise ValueError(f"Invalid stable value: {self.stable!r}")
+        if not isinstance(self.no_dev, bool):
+            raise ValueError(f"Invalid no_dev value: {self.no_dev!r}")
         if not isinstance(self.tag_prefix, str):
             raise ValueError(f"Invalid tag_prefix: {self.tag_prefix!r}")
         if not isinstance(self.timezone, str):
@@ -125,6 +128,7 @@ class CalverConfig:
         scheme = data.get("scheme")
         patch = data.get("patch", True)
         stable = data.get("stable", True)
+        no_dev = data.get("no_dev", False)
         fallback = data.get("fallback", FallbackMode.DEV)
         tag_prefix = data.get("tag_prefix", "v")
         timezone = data.get("timezone", "UTC")
@@ -134,6 +138,7 @@ class CalverConfig:
             scheme=scheme,
             patch=patch,
             stable=stable,
+            no_dev=no_dev,
             fallback=fallback,
             tag_prefix=tag_prefix,
             timezone=timezone,
@@ -210,6 +215,7 @@ class CalverConfig:
             "scheme": base.scheme,
             "patch": base.patch,
             "stable": base.stable,
+            "no_dev": base.no_dev,
             "fallback": base.fallback,
             "tag_prefix": base.tag_prefix,
             "timezone": base.timezone,
@@ -240,6 +246,17 @@ class CalverConfig:
                 raise ValueError(
                     f"Invalid CALVER_SCM_STABLE value: "
                     f"{os.environ['CALVER_SCM_STABLE']!r}"
+                )
+        if "CALVER_SCM_NO_DEV" in os.environ:
+            value = os.environ["CALVER_SCM_NO_DEV"].strip().lower()
+            if value in TRUE_ENV_VALUES:
+                data["no_dev"] = True
+            elif value in FALSE_ENV_VALUES:
+                data["no_dev"] = False
+            else:
+                raise ValueError(
+                    f"Invalid CALVER_SCM_NO_DEV value: "
+                    f"{os.environ['CALVER_SCM_NO_DEV']!r}"
                 )
         if "CALVER_SCM_FALLBACK" in os.environ:
             data["fallback"] = os.environ["CALVER_SCM_FALLBACK"]

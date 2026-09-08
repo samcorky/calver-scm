@@ -243,6 +243,7 @@ mode       = "month"   # "year" | "month" | "week" | "day"
 scheme     = "YYYY.MM" # optional token scheme; defaults from mode
 patch      = true      # auto-increment patch within a period
 stable     = true      # emit normal tags, or prefix versions with 0. when false
+no_dev     = false     # suppress .devN suffix on non-exact versions
 fallback   = "dev"     # "dev" | "date" (when no tag exists)
 tag_prefix = "v"       # prefix stripped when reading tags
 timezone   = "UTC"     # "UTC" (default), "local", or IANA tz name
@@ -359,6 +360,26 @@ For a go-live cutover, the recommended flow is:
 That keeps the unstable `0.` tag line distinct from the stable release line and
 avoids silently reinterpreting old unstable tags as stable ones.
 
+### `no_dev`
+
+When `true`, suppresses the `.devN` suffix on generated versions, emitting a clean `{base}.{patch}` version even when commits exist after the latest tag or when falling back in an untagged repository.
+
+```toml
+# no_dev = false (default): normal development versions with distance suffix
+[tool.calver-scm]
+no_dev = false
+# tag v2026.4.2, then 3 commits later -> 2026.4.3.dev3
+
+# no_dev = true: suppress dev suffix for release workflows
+[tool.calver-scm]
+no_dev = true
+# tag v2026.4.2, then 3 commits later -> 2026.4.3
+```
+
+This is especially useful in release CI workflows that compute the clean target release version, create the tag, and publish the release in one pass without requiring a separate bumping step.
+
+> **Note:** `no_dev` only suppresses the public `.devN` version segment. Setuptools-scm's `local_scheme` (such as the default `node-and-date`) can still append a `+g...` local segment on untagged commits. Pair `no_dev = true` / `CALVER_SCM_NO_DEV=true` with a distance-insensitive local scheme like `dirty-tag` or `no-local-version` (or CI overrides like `no-local-version-strict`) to ensure a clean version string.
+
 ### `fallback`
 
 Controls what happens when no tag exists yet in the repository.
@@ -430,6 +451,7 @@ Every option can be overridden at build time without touching `pyproject.toml`, 
 | `CALVER_SCM_SCHEME`     | `scheme`                    |
 | `CALVER_SCM_PATCH`      | `patch` (`true` / `false`)  |
 | `CALVER_SCM_STABLE`     | `stable` (`true` / `false`) |
+| `CALVER_SCM_NO_DEV`     | `no_dev` (`true` / `false`) |
 | `CALVER_SCM_FALLBACK`   | `fallback`                  |
 | `CALVER_SCM_TAG_PREFIX` | `tag_prefix`                |
 | `CALVER_SCM_TIMEZONE`   | `timezone`                  |
