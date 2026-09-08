@@ -46,7 +46,7 @@ body:
         Provide a minimal set of steps that reliably reproduces the issue.
 
         Example:
-        1. Create a Git repository with the tag `2026.04.0`.
+        1. Create a Git repository with the tag `2026.4.0`.
         2. Add one commit after the tag.
         3. Run `python -m setuptools_scm`.
         4. Observe the version string produced.

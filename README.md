@@ -26,13 +26,13 @@
 Versions look like this:
 
 ```
-2026.04.0          -> clean tag, April 2026, patch 0
-2026.04.1.dev3     -> 3 commits after that tag, still April, patch incremented
-2026.05.0.dev3     -> 3 commits after an old tag, month rolled over, patch reset
-2026.04.15.0       -> day mode: clean tag on the 15th
-2026.04.15.1.dev2  -> day mode: 2 commits after a tag on the same day
-2026.04.0.dev12    -> no tag yet, 12 commits in
-0.2026.04.0        -> same release line, but marked unstable/pre-1.0
+2026.4.0          -> clean tag, April 2026, patch 0
+2026.4.1.dev3     -> 3 commits after that tag, still April, patch incremented
+2026.5.0.dev3     -> 3 commits after an old tag, month rolled over, patch reset
+2026.4.15.0       -> day mode: clean tag on the 15th
+2026.4.15.1.dev2  -> day mode: 2 commits after a tag on the same day
+2026.4.0.dev12    -> no tag yet, 12 commits in
+0.2026.4.0        -> same release line, but marked unstable/pre-1.0
 ```
 
 ---
@@ -141,19 +141,19 @@ If `stable = false`, `calver-scm` prefixes the generated public version with
 `0.` to indicate an explicitly unstable release line:
 
 ```
-2026.04.0      -> stable output (default)
-0.2026.04.0    -> unstable output
-0.2026.04.1.dev3
+2026.4.0      -> stable output (default)
+0.2026.4.0    -> unstable output
+0.2026.4.1.dev3
 ```
 
 | Situation                               | Example           |
 |-----------------------------------------|-------------------|
-| Clean tag, month mode                   | `2026.04.0`       |
-| Commits after tag, same month           | `2026.04.1.dev3`  |
-| Commits after tag, previous month's tag | `2026.05.0.dev3`  |
-| Clean tag, day mode                     | `2026.04.15.0`    |
-| Dirty working tree                      | `2026.04.0+dirty` |
-| No tag yet                              | `2026.04.0.dev12` |
+| Clean tag, month mode                   | `2026.4.0`       |
+| Commits after tag, same month           | `2026.4.1.dev3`  |
+| Commits after tag, previous month's tag | `2026.5.0.dev3`  |
+| Clean tag, day mode                     | `2026.4.15.0`    |
+| Dirty working tree                      | `2026.4.0+dirty` |
+| No tag yet                              | `2026.4.0.dev12` |
 
 The **patch** segment increments automatically from your last tag within the current period, and resets to `0` whenever the month (or day, in day mode) rolls over.
 
@@ -176,10 +176,10 @@ Tag any of the recognised PEP 440 aliases and it is normalised automatically:
 | `preview` / `pre` / `c` / `rc` | `rc`             |
 
 ```
-v2026.04.0a1     -> 2026.04.0a1
-v2026.04.0beta2  -> 2026.04.0b2
-v2026.04.0pre1   -> 2026.04.0rc1
-v2026.04.0rc1    -> 2026.04.0rc1
+v2026.4.0a1     -> 2026.4.0a1
+v2026.4.0beta2  -> 2026.4.0b2
+v2026.4.0pre1   -> 2026.4.0rc1
+v2026.4.0rc1    -> 2026.4.0rc1
 ```
 
 ### Post-release suffixes (`post`)
@@ -190,10 +190,10 @@ v2026.04.0rc1    -> 2026.04.0rc1
 | `post-N` / `postN`     | `postN`          |
 
 ```
-v2026.04.0-r1     -> 2026.04.0.post1
-v2026.04.0.rev2   -> 2026.04.0.post2
-v2026.04.0.post-3 -> 2026.04.0.post3
-v2026.04.0.post3  -> 2026.04.0.post3
+v2026.4.0-r1     -> 2026.4.0.post1
+v2026.4.0.rev2   -> 2026.4.0.post2
+v2026.4.0.post-3 -> 2026.4.0.post3
+v2026.4.0.post3  -> 2026.4.0.post3
 ```
 
 ### Dev suffixes (`dev`)
@@ -204,9 +204,9 @@ v2026.04.0.post3  -> 2026.04.0.post3
 | `dev-N` / `devN` | `devN`           |
 
 ```
-v2026.04.0.dev    -> 2026.04.0.dev0
-v2026.04.0.dev-4  -> 2026.04.0.dev4
-v2026.04.0.dev4   -> 2026.04.0.dev4
+v2026.4.0.dev    -> 2026.4.0.dev0
+v2026.4.0.dev-4  -> 2026.4.0.dev4
+v2026.4.0.dev4   -> 2026.4.0.dev4
 ```
 
 ### Local version segment (`+`)
@@ -215,8 +215,8 @@ A `+local` segment on a tag is preserved as-is. PEP 440 normalises
 underscores to dots within local identifiers:
 
 ```
-v2026.04.0+abc            -> 2026.04.0+abc
-v2026.04.0+linux.x86_64   -> 2026.04.0+linux.x86.64
+v2026.4.0+abc            -> 2026.4.0+abc
+v2026.4.0+linux.x86_64   -> 2026.4.0+linux.x86.64
 ```
 
 > **Note:** The `+local` segment on a *tag* is distinct from the `+dirty`
@@ -228,7 +228,7 @@ v2026.04.0+linux.x86_64   -> 2026.04.0+linux.x86.64
 All segments can be combined and are each normalised independently:
 
 ```
-v2026.04.0rc1.post2.dev3+local -> 2026.04.0rc1.post2.dev3+local
+v2026.4.0rc1.post2.dev3+local -> 2026.4.0rc1.post2.dev3+local
 ```
 
 ---
@@ -240,7 +240,7 @@ Add a `[tool.calver-scm]` section to `pyproject.toml` to customise behaviour. Al
 ```toml
 [tool.calver-scm]
 mode       = "month"   # "year" | "month" | "week" | "day"
-scheme     = "YYYY.0M" # optional token scheme; defaults from mode
+scheme     = "YYYY.MM" # optional token scheme; defaults from mode
 patch      = true      # auto-increment patch within a period
 stable     = true      # emit normal tags, or prefix versions with 0. when false
 fallback   = "dev"     # "dev" | "date" (when no tag exists)
@@ -251,23 +251,23 @@ timezone   = "UTC"     # "UTC" (default), "local", or IANA tz name
 If `scheme` is omitted, `calver-scm` uses sensible defaults:
 
 - `mode = "year"` -> `YYYY`
-- `mode = "month"` -> `YYYY.0M`
-- `mode = "week"` -> `YYYY.0W`
-- `mode = "day"` -> `YYYY.0M.0D`
+- `mode = "month"` -> `YYYY.MM`
+- `mode = "week"` -> `YYYY.WW`
+- `mode = "day"` -> `YYYY.MM.DD`
 
-Supported `scheme` tokens follow CalVer terminology: `YYYY`, `YY`, `0Y`, `MM`,
-`0M`, `WW`, `0W`, `DD`, `0D`.
+Supported `scheme` tokens follow CalVer terminology: `YYYY`, `YY`, `MM`,
+`WW`, `DD`.
 
-> Week tokens (`WW`, `0W`) cannot be combined with month/day tokens.
+> Week tokens (`WW`) cannot be combined with month/day tokens.
 
 ### `mode`
 
 Controls the time granularity of the version base.
 
 - `"year"`: base is `YYYY` (e.g. `2026`)
-- `"month"`: base is `YYYY.MM` (e.g. `2026.04`)
+- `"month"`: base is `YYYY.MM` (e.g. `2026.4`)
 - `"week"`: base is `YYYY.WW` (e.g. `2026.16`)
-- `"day"`: base is `YYYY.MM.DD` (e.g. `2026.04.15`)
+- `"day"`: base is `YYYY.MM.DD` (e.g. `2026.4.15`)
 
 ```toml
 # Year mode: annual cadence
@@ -278,7 +278,7 @@ mode = "year"
 # Month mode (default): good for most projects
 [tool.calver-scm]
 mode = "month"
-# -> 2026.04.0, 2026.04.1.dev3, 2026.05.0.dev1 ...
+# -> 2026.4.0, 2026.4.1.dev3, 2026.5.0.dev1 ...
 
 # Week mode: weekly cadence
 [tool.calver-scm]
@@ -288,7 +288,7 @@ mode = "week"
 # Day mode: useful for projects that release frequently
 [tool.calver-scm]
 mode = "day"
-# -> 2026.04.15.0, 2026.04.15.1.dev2, 2026.04.16.0.dev1 ...
+# -> 2026.4.15.0, 2026.4.15.1.dev2, 2026.4.16.0.dev1 ...
 ```
 
 ### `scheme`
@@ -298,16 +298,16 @@ Defines the date portion explicitly using CalVer tokens.
 ```toml
 # Explicitly match the default month style
 [tool.calver-scm]
-scheme = "YYYY.0M"
+scheme = "YYYY.MM"
 
 # Short year + month
 [tool.calver-scm]
-scheme = "YY.0M"
-# -> 26.04.0, 26.04.1.dev3
+scheme = "YY.MM"
+# -> 26.4.0, 26.4.1.dev3
 
 # Year + ISO week (week schemes are month/day-exclusive)
 [tool.calver-scm]
-scheme = "YYYY.0W"
+scheme = "YYYY.WW"
 # -> 2026.16.0, 2026.16.1.dev2
 ```
 
@@ -319,12 +319,12 @@ When `true`, the patch number increments from the last tag within the same perio
 # patch = true (default): each build within a period gets a unique patch number
 [tool.calver-scm]
 patch = true
-# tag v2026.04.2, then 3 commits later -> 2026.04.3.dev3
+# tag v2026.4.2, then 3 commits later -> 2026.4.3.dev3
 
 # patch = false: patch stays 0, only devN changes
 [tool.calver-scm]
 patch = false
-# tag v2026.04.2, then 3 commits later -> 2026.04.0.dev3
+# tag v2026.4.2, then 3 commits later -> 2026.4.0.dev3
 ```
 
 ### `stable`
@@ -336,16 +336,16 @@ explicitly marked as unstable with a leading `0.` prefix.
 # stable = true (default): emit standard CalVer versions
 [tool.calver-scm]
 stable = true
-# tag v2026.04.2, then 3 commits later -> 2026.04.3.dev3
+# tag v2026.4.2, then 3 commits later -> 2026.4.3.dev3
 
 # stable = false: prefix generated output with 0.
 [tool.calver-scm]
 stable = false
-# tag v2026.04.2, then 3 commits later -> 0.2026.04.3.dev3
+# tag v2026.4.2, then 3 commits later -> 0.2026.4.3.dev3
 ```
 
-While `stable = false`, both `v0.2026.04.3` and legacy unprefixed tags like
-`v2026.04.3` are accepted as parseable historical bases to ease migration.
+While `stable = false`, both `v0.2026.4.3` and legacy unprefixed tags like
+`v2026.4.3` are accepted as parseable historical bases to ease migration.
 When you switch to `stable = true`, tags that still carry the unstable `0.`
 prefix are treated as incompatible and the version scheme falls back until you
 create the first stable tag.
@@ -354,7 +354,7 @@ For a go-live cutover, the recommended flow is:
 
 1. develop and pre-release with `stable = false`
 2. flip to `stable = true` on the release commit
-3. create the first stable tag, for example `v2026.04.0`
+3. create the first stable tag, for example `v2026.4.0`
 
 That keeps the unstable `0.` tag line distinct from the stable release line and
 avoids silently reinterpreting old unstable tags as stable ones.
@@ -370,12 +370,12 @@ Controls what happens when no tag exists yet in the repository.
 # fallback = "dev" (default): makes it clear this is a pre-release build
 [tool.calver-scm]
 fallback = "dev"
-# 12 commits, no tag yet -> 2026.04.0.dev12
+# 12 commits, no tag yet -> 2026.4.0.dev12
 
 # fallback = "date": emits a clean version even before the first tag
 [tool.calver-scm]
 fallback = "date"
-# 12 commits, no tag yet -> 2026.04.0
+# 12 commits, no tag yet -> 2026.4.0
 ```
 
 ### `tag_prefix`
@@ -383,15 +383,15 @@ fallback = "date"
 The string that must prefix a tag for it to be recognised as a CalVer tag. Set to `""` if your tags have no prefix.
 
 ```toml
-# tag_prefix = "v" (default): tags like v2026.04.0
+# tag_prefix = "v" (default): tags like v2026.4.0
 [tool.calver-scm]
 tag_prefix = "v"
 
-# No prefix: tags like 2026.04.0
+# No prefix: tags like 2026.4.0
 [tool.calver-scm]
 tag_prefix = ""
 
-# Custom prefix: tags like release-2026.04.0
+# Custom prefix: tags like release-2026.4.0
 [tool.calver-scm]
 tag_prefix = "release-"
 ```
@@ -435,17 +435,6 @@ Every option can be overridden at build time without touching `pyproject.toml`, 
 | `CALVER_SCM_TIMEZONE`   | `timezone`                  |
 
 Environment variables take precedence over `pyproject.toml`.
-
-> **Migration note:** Environment variable names were renamed from
-> `SCM_CALVER_*` to `CALVER_SCM_*`.
->
-> - `SCM_CALVER_MODE` -> `CALVER_SCM_MODE`
-> - `SCM_CALVER_SCHEME` -> `CALVER_SCM_SCHEME`
-> - `SCM_CALVER_PATCH` -> `CALVER_SCM_PATCH`
-> - `SCM_CALVER_STABLE` -> `CALVER_SCM_STABLE`
-> - `SCM_CALVER_FALLBACK` -> `CALVER_SCM_FALLBACK`
-> - `SCM_CALVER_TAG_PREFIX` -> `CALVER_SCM_TAG_PREFIX`
-> - `SCM_CALVER_TIMEZONE` -> `CALVER_SCM_TIMEZONE`
 
 ---
 

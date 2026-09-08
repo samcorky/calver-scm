@@ -32,13 +32,13 @@ def test_parse_tag_rejects_unstable_prefix_when_stable_true() -> None:
 
 def test_parse_tag_rejects_clear_unstable_prefix_for_short_year_scheme() -> None:
     """Reject unambiguous unstable prefixes even when the scheme starts with `YY`."""
-    cfg = CalverConfig(scheme="YY.0M", stable=True)
+    cfg = CalverConfig(scheme="YY.MM", stable=True)
     assert _parse_tag("v0.26.04.3", cfg) is None
 
 
 def test_parse_tag_accepts_ambiguous_short_year_zero_value_in_stable_mode() -> None:
     """Preserve valid stable tags whose short year component is genuinely zero."""
-    cfg = CalverConfig(scheme="YY.0M", stable=True)
+    cfg = CalverConfig(scheme="YY.MM", stable=True)
     parsed = _parse_tag("v0.04.3", cfg)
     assert parsed is not None
     assert _release_components(parsed, cfg) == ((0, 4), 3)
@@ -90,3 +90,19 @@ def test_release_components_accepts_unstable_mode_with_legacy_unprefixed_tag() -
     parsed = _parse_tag("v2026.04.3", cfg)
     assert parsed is not None
     assert _release_components(parsed, cfg) == ((2026, 4), 3)
+
+
+def test_release_components_for_older_year_tags() -> None:
+    """Parse tags from past years into components accurately."""
+    cfg = CalverConfig(mode=CalverMode.MONTH)
+    parsed = _parse_tag("v2025.12.1", cfg)
+    assert parsed is not None
+    assert _release_components(parsed, cfg) == ((2025, 12), 1)
+
+
+def test_release_components_for_legacy_two_part_tag() -> None:
+    """Extract release components for legacy two-part tag in month mode."""
+    cfg = CalverConfig(mode=CalverMode.MONTH)
+    parsed = _parse_tag("v1.0", cfg)
+    assert parsed is not None
+    assert _release_components(parsed, cfg) == ((1, 0), 0)

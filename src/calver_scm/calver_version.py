@@ -6,7 +6,7 @@ from packaging.version import Version
 
 
 class CalverVersion(Version):
-    """A `Version` helper that preserves CalVer-specific zero padding."""
+    """A `Version` helper for CalVer version formatting."""
 
     def _pep440_suffix(self) -> str:
         """Render non-release PEP 440 segments in canonical order."""
@@ -44,7 +44,7 @@ class CalverVersion(Version):
             else:
                 return str(self)
 
-            base = f"{year}.{month:02d}.{day:02d}.{patch}"
+            base = f"{year}.{month}.{day}.{patch}"
         else:
             if len(release) == 2:
                 year, month = release
@@ -54,6 +54,6 @@ class CalverVersion(Version):
             else:
                 return str(self)
 
-            base = f"{year}.{month:02d}.{patch}"
+            base = f"{year}.{month}.{patch}"
 
         return f"{base}{self._pep440_suffix()}"

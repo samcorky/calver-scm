@@ -14,7 +14,6 @@ from calver_scm.utils import (
     _date_parts,
     _fallback_version,
     _format_date_parts,
-    _is_padded_token,
     _is_same_period,
     _today_in_timezone,
     _token_value,
@@ -28,13 +27,9 @@ pytestmark = pytest.mark.unit
     [
         ("YYYY", dt.date(2026, 4, 15), 2026),
         ("YY", dt.date(2026, 4, 15), 26),
-        ("0Y", dt.date(2026, 4, 15), 26),
         ("MM", dt.date(2026, 4, 15), 4),
-        ("0M", dt.date(2026, 4, 15), 4),
         ("DD", dt.date(2026, 4, 15), 15),
-        ("0D", dt.date(2026, 4, 15), 15),
         ("WW", dt.date(2026, 4, 15), 16),
-        ("0W", dt.date(2026, 4, 15), 16),
     ],
 )
 def test_token_value_maps_supported_tokens(
@@ -46,19 +41,11 @@ def test_token_value_maps_supported_tokens(
     assert _token_value(token, date) == expected
 
 
-def test_token_value_rejects_unknown_token() -> None:
+@pytest.mark.parametrize("token", ["BAD", "0Y", "0M", "0W", "0D"])
+def test_token_value_rejects_unknown_token(token: str) -> None:
     """Raise when attempting to map an unsupported token."""
     with pytest.raises(ValueError, match="Unsupported scheme token"):
-        _token_value("BAD", dt.date(2026, 4, 15))
-
-
-@pytest.mark.parametrize(
-    ("token", "expected"),
-    [("0Y", True), ("0M", True), ("0W", True), ("0D", True), ("MM", False)],
-)
-def test_is_padded_token_identifies_padding_rules(token: str, expected: bool) -> None:
-    """Identify which tokens require zero-padding in output."""
-    assert _is_padded_token(token) is expected
+        _token_value(token, dt.date(2026, 4, 15))
 
 
 def test_date_parts_and_base_for_day_scheme() -> None:
@@ -66,13 +53,13 @@ def test_date_parts_and_base_for_day_scheme() -> None:
     cfg = CalverConfig(mode=CalverMode.DAY)
     today = dt.date(2026, 4, 5)
     assert _date_parts(today, cfg) == (2026, 4, 5)
-    assert _base(today, cfg) == "2026.04.05"
+    assert _base(today, cfg) == "2026.4.5"
 
 
-def test_format_date_parts_honors_padded_and_non_padded_tokens() -> None:
-    """Render parts with per-token padding semantics."""
-    cfg = CalverConfig(scheme="YY.MM.0D")
-    assert _format_date_parts((26, 4, 5), cfg) == "26.4.05"
+def test_format_date_parts_renders_dot_separated_parts() -> None:
+    """Render date parts as dot-separated string."""
+    cfg = CalverConfig(scheme="YY.MM.DD")
+    assert _format_date_parts((26, 4, 5), cfg) == "26.4.5"
 
 
 def test_is_same_period_uses_configured_scheme_tokens() -> None:
@@ -86,8 +73,8 @@ def test_is_same_period_uses_configured_scheme_tokens() -> None:
 @pytest.mark.parametrize(
     ("fallback", "expected"),
     [
-        (FallbackMode.DEV, "2026.04.0.dev5"),
-        (FallbackMode.DATE, "2026.04.0"),
+        (FallbackMode.DEV, "2026.4.0.dev5"),
+        (FallbackMode.DATE, "2026.4.0"),
     ],
 )
 def test_fallback_version_renders_expected_modes(
@@ -95,15 +82,15 @@ def test_fallback_version_renders_expected_modes(
     expected: str,
 ) -> None:
     """Render fallback output for both supported fallback modes."""
-    assert _fallback_version(base="2026.04", distance=5, fallback=fallback) == expected
+    assert _fallback_version(base="2026.4", distance=5, fallback=fallback) == expected
 
 
 @pytest.mark.parametrize(
     ("cfg", "version", "expected"),
     [
-        (CalverConfig(stable=True), "2026.04.0", "2026.04.0"),
-        (CalverConfig(stable=False), "2026.04.0", "0.2026.04.0"),
-        (CalverConfig(stable=False), "0.04.0", "0.0.04.0"),
+        (CalverConfig(stable=True), "2026.4.0", "2026.4.0"),
+        (CalverConfig(stable=False), "2026.4.0", "0.2026.4.0"),
+        (CalverConfig(stable=False), "0.4.0", "0.0.4.0"),
     ],
 )
 def test_apply_stability_prefix_respects_config_only(

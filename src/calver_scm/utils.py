@@ -22,15 +22,9 @@ def _date_parts(today: datetime.date, cfg: CalverConfig) -> tuple[int, ...]:
     return tuple(_token_value(token, today) for token in cfg.scheme_tokens)
 
 
-def _format_date_parts(parts: tuple[int, ...], cfg: CalverConfig) -> str:
-    """Render date parts according to token zero-padding semantics."""
-    rendered: list[str] = []
-    for token, value in zip(cfg.scheme_tokens, parts, strict=True):
-        if _is_padded_token(token):
-            rendered.append(f"{value:02d}")
-        else:
-            rendered.append(str(value))
-    return ".".join(rendered)
+def _format_date_parts(parts: tuple[int, ...], _cfg: CalverConfig | None = None) -> str:
+    """Render date parts."""
+    return ".".join(str(part) for part in parts)
 
 
 def _token_value(token: str, today: datetime.date) -> int:
@@ -38,21 +32,16 @@ def _token_value(token: str, today: datetime.date) -> int:
     match token:
         case "YYYY":
             return today.year
-        case "YY" | "0Y":
+        case "YY":
             return today.year - 2000
-        case "MM" | "0M":
+        case "MM":
             return today.month
-        case "DD" | "0D":
+        case "DD":
             return today.day
-        case "WW" | "0W":
+        case "WW":
             return today.isocalendar().week
         case _:
             raise ValueError(f"Unsupported scheme token: {token!r}")
-
-
-def _is_padded_token(token: str) -> bool:
-    """Return whether a scheme token must be zero-padded in output."""
-    return token in ("0Y", "0M", "0W", "0D")
 
 
 def _base(today: datetime.date, cfg: CalverConfig) -> str:

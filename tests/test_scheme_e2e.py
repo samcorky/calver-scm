@@ -25,11 +25,11 @@ pytestmark = pytest.mark.e2e
             0,
             False,
             dt.date(2026, 4, 15),
-            "2026.04.2rc1.post2.dev3+abc",
+            "2026.4.2rc1.post2.dev3+abc",
         ),
-        ("v2026.04.2", 3, False, dt.date(2026, 4, 15), "2026.04.3.dev3"),
-        ("v2026.04.2", 3, False, dt.date(2026, 5, 1), "2026.05.0.dev3"),
-        ("v2026.04.2", 0, True, dt.date(2026, 4, 15), "2026.04.3.dev0"),
+        ("v2026.04.2", 3, False, dt.date(2026, 4, 15), "2026.4.3.dev3"),
+        ("v2026.04.2", 3, False, dt.date(2026, 5, 1), "2026.5.0.dev3"),
+        ("v2026.04.2", 0, True, dt.date(2026, 4, 15), "2026.4.3.dev0"),
     ],
 )
 def test_calver_scm_month_mode_flows(
@@ -61,16 +61,16 @@ def test_calver_scm_respects_patch_false(
         lambda _tz: dt.date(2026, 4, 15),
     )
     version = make_scm_version(root=root, tag="v2026.04.2", distance=3)
-    assert calver_scm(version) == "2026.04.0.dev3"
+    assert calver_scm(version) == "2026.4.0.dev3"
 
 
 @pytest.mark.parametrize(
     ("tag", "distance", "dirty", "expected"),
     [
-        ("v2026.04.2", 0, False, "0.2026.04.2"),
-        ("v2026.04.2rc1.post2.dev3+abc", 0, False, "0.2026.04.2rc1.post2.dev3+abc"),
-        ("v2026.04.2", 3, False, "0.2026.04.3.dev3"),
-        ("v2026.04.2", 0, True, "0.2026.04.3.dev0"),
+        ("v2026.04.2", 0, False, "0.2026.4.2"),
+        ("v2026.04.2rc1.post2.dev3+abc", 0, False, "0.2026.4.2rc1.post2.dev3+abc"),
+        ("v2026.04.2", 3, False, "0.2026.4.3.dev3"),
+        ("v2026.04.2", 0, True, "0.2026.4.3.dev0"),
     ],
 )
 def test_calver_scm_prepends_zero_prefix_when_stable_false(
@@ -104,7 +104,7 @@ def test_calver_scm_fallback_when_no_tag_in_dev_mode(
         lambda _tz: dt.date(2026, 4, 15),
     )
     version = make_scm_version(root=root, tag=None, distance=12)
-    assert calver_scm(version) == "2026.04.0.dev12"
+    assert calver_scm(version) == "2026.4.0.dev12"
 
 
 def test_calver_scm_fallback_when_no_tag_in_date_mode(
@@ -119,14 +119,14 @@ def test_calver_scm_fallback_when_no_tag_in_date_mode(
         lambda _tz: dt.date(2026, 4, 15),
     )
     version = make_scm_version(root=root, tag=None, distance=12)
-    assert calver_scm(version) == "2026.04.0"
+    assert calver_scm(version) == "2026.4.0"
 
 
 @pytest.mark.parametrize(
     ("fallback", "expected"),
     [
-        ("dev", "0.2026.04.0.dev12"),
-        ("date", "0.2026.04.0"),
+        ("dev", "0.2026.4.0.dev12"),
+        ("date", "0.2026.4.0"),
     ],
 )
 def test_calver_scm_prepends_zero_prefix_for_unstable_fallback_modes(
@@ -163,8 +163,8 @@ def test_calver_scm_fallback_for_unparsable_or_incompatible_tag(
     invalid_tag = make_scm_version(root=root, tag="vnot-a-version", distance=4)
     incompatible_tag = make_scm_version(root=root, tag="v2026.04", distance=4)
 
-    assert calver_scm(invalid_tag) == "2026.04.15.0.dev4"
-    assert calver_scm(incompatible_tag) == "2026.04.15.0.dev4"
+    assert calver_scm(invalid_tag) == "2026.4.15.0.dev4"
+    assert calver_scm(incompatible_tag) == "2026.4.15.0.dev4"
 
 
 def test_calver_scm_honors_custom_tag_prefix(
@@ -179,7 +179,7 @@ def test_calver_scm_honors_custom_tag_prefix(
         lambda _tz: dt.date(2026, 4, 15),
     )
     version = make_scm_version(root=root, tag="release-2026.04.2", distance=0)
-    assert calver_scm(version) == "2026.04.2"
+    assert calver_scm(version) == "2026.4.2"
 
 
 def test_clean_checkout_preserves_local_tag_segment(
@@ -199,55 +199,66 @@ def test_clean_checkout_preserves_local_tag_segment(
         distance=0,
         dirty=False,
     )
-    assert calver_scm(version) == "2026.04.2+linux.x86.64"
+    assert calver_scm(version) == "2026.4.2+linux.x86.64"
 
 
-def test_semver_tag_in_history_rolls_forward_to_calver_dev_version(
+@pytest.mark.parametrize(
+    ("tag", "distance", "dirty", "today", "expected"),
+    [
+        ("v1.2.3", 7, False, dt.date(2026, 4, 15), "2026.4.0.dev7"),
+        ("v1.2.3", 0, True, dt.date(2026, 4, 15), "2026.4.0.dev0"),
+        ("v1.2.3", 3, True, dt.date(2026, 4, 15), "2026.4.0.dev3"),
+        ("v1.2.3rc1", 2, False, dt.date(2026, 4, 15), "2026.4.0.dev2"),
+        ("v1.0", 4, False, dt.date(2026, 4, 15), "2026.4.0.dev4"),
+        ("v0.1.0", 5, False, dt.date(2026, 4, 15), "2026.4.0.dev5"),
+        ("1.2.3", 6, False, dt.date(2026, 4, 15), "2026.4.0.dev6"),
+        ("v2025.12.1", 5, False, dt.date(2026, 4, 15), "2026.4.0.dev5"),
+        ("v2025.12.1", 0, True, dt.date(2026, 4, 15), "2026.4.0.dev0"),
+        ("v2025.12.1", 3, True, dt.date(2026, 4, 15), "2026.4.0.dev3"),
+        ("v2025.12.31.2", 4, False, dt.date(2026, 4, 15), "2026.4.0.dev4"),
+    ],
+)
+def test_old_formatted_tag_in_history_rolls_forward_to_calver_dev_version(
     write_pyproject: Callable[[str], Path],
     make_scm_version: Callable[..., Any],
     monkeypatch: pytest.MonkeyPatch,
+    tag: str,
+    distance: int,
+    dirty: bool,
+    today: dt.date,
+    expected: str,
 ) -> None:
-    """Generate a CalVer dev version when the latest tag still uses SemVer."""
+    """Roll forward to CalVer dev version when latest history tag is older format."""
+    root = write_pyproject('mode = "month"')
+    monkeypatch.setattr("calver_scm.scheme._today_in_timezone", lambda _tz: today)
+    version = make_scm_version(root=root, tag=tag, distance=distance, dirty=dirty)
+    assert calver_scm(version) == expected
+
+
+@pytest.mark.parametrize(
+    ("tag", "expected"),
+    [
+        ("v1.2.3", "1.2.3"),
+        ("v1.0", "1.0.0"),
+        ("v2025.12.1", "2025.12.1"),
+        ("v2025.12", "2025.12.0"),
+    ],
+)
+def test_clean_checkout_on_old_formatted_tag_preserves_normalized_release(
+    write_pyproject: Callable[[str], Path],
+    make_scm_version: Callable[..., Any],
+    monkeypatch: pytest.MonkeyPatch,
+    tag: str,
+    expected: str,
+) -> None:
+    """Document clean-tag behaviour when the discovered tag uses an older format."""
     root = write_pyproject('mode = "month"')
     monkeypatch.setattr(
         "calver_scm.scheme._today_in_timezone",
         lambda _tz: dt.date(2026, 4, 15),
     )
-    version = make_scm_version(root=root, tag="v1.2.3", distance=7)
-    assert calver_scm(version) == "2026.04.0.dev7"
-
-
-def test_semver_prerelease_tag_in_history_rolls_forward_to_calver_dev_version(
-    write_pyproject: Callable[[str], Path],
-    make_scm_version: Callable[..., Any],
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """
-    Handle SemVer pre-release tags during migration,
-    without blocking CalVer output.
-    """
-    root = write_pyproject('mode = "month"')
-    monkeypatch.setattr(
-        "calver_scm.scheme._today_in_timezone",
-        lambda _tz: dt.date(2026, 4, 15),
-    )
-    version = make_scm_version(root=root, tag="v1.2.3rc1", distance=2)
-    assert calver_scm(version) == "2026.04.0.dev2"
-
-
-def test_clean_checkout_on_semver_tag_preserves_normalized_semver_release(
-    write_pyproject: Callable[[str], Path],
-    make_scm_version: Callable[..., Any],
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Document current clean-tag behaviour when the discovered tag is SemVer."""
-    root = write_pyproject('mode = "month"')
-    monkeypatch.setattr(
-        "calver_scm.scheme._today_in_timezone",
-        lambda _tz: dt.date(2026, 4, 15),
-    )
-    version = make_scm_version(root=root, tag="v1.2.3", distance=0, dirty=False)
-    assert calver_scm(version) == "1.02.3"
+    version = make_scm_version(root=root, tag=tag, distance=0, dirty=False)
+    assert calver_scm(version) == expected
 
 
 def test_calver_scm_uses_current_directory_when_root_missing(
@@ -268,5 +279,5 @@ def test_calver_scm_uses_current_directory_when_root_missing(
     version: Any = SimpleNamespace(
         config=SimpleNamespace(), tag=None, distance=2, dirty=False
     )
-    assert calver_scm(version) == "2026.04.0.dev2"
+    assert calver_scm(version) == "2026.4.0.dev2"
     assert captured["root"] == Path(".").resolve()
