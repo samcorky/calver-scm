@@ -49,11 +49,22 @@ def _base(today: datetime.date, cfg: CalverConfig) -> str:
     return _format_date_parts(_date_parts(today, cfg), cfg)
 
 
-def _fallback_version(*, base: str, distance: int, fallback: FallbackMode) -> str:
+def _format_dev_version(
+    *, base: str, patch: int, distance: int, no_dev: bool = False
+) -> str:
+    """Render base, patch, and optional dev suffix according to no_dev."""
+    if no_dev:
+        return f"{base}.{patch}"
+    return f"{base}.{patch}.dev{distance}"
+
+
+def _fallback_version(
+    *, base: str, distance: int, fallback: FallbackMode, no_dev: bool = False
+) -> str:
     """Build fallback output when a tag is missing or incompatible."""
     if fallback == "date":
         return f"{base}.0"
-    return f"{base}.0.dev{distance}"
+    return _format_dev_version(base=base, patch=0, distance=distance, no_dev=no_dev)
 
 
 def _apply_stability_prefix(version: str, cfg: CalverConfig) -> str:

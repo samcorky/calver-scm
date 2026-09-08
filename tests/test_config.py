@@ -61,6 +61,7 @@ def test_scheme_tokens_from_explicit_scheme() -> None:
         {"scheme": "YYYY.WW.DD"},
         {"patch": "true"},
         {"stable": "false"},
+        {"no_dev": "true"},
         {"tag_prefix": 1},
         {"timezone": 1},
         {"timezone": "   "},
@@ -80,6 +81,7 @@ def test_from_dict_applies_defaults() -> None:
     assert cfg.scheme is None
     assert cfg.patch is True
     assert cfg.stable is True
+    assert cfg.no_dev is False
     assert cfg.fallback is FallbackMode.DEV
     assert cfg.tag_prefix == "v"
     assert cfg.timezone == "UTC"
@@ -97,6 +99,7 @@ def test_overlay_env_overrides_values(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("CALVER_SCM_SCHEME", "YYYY.MM.DD")
     monkeypatch.setenv("CALVER_SCM_PATCH", "off")
     monkeypatch.setenv("CALVER_SCM_STABLE", "no")
+    monkeypatch.setenv("CALVER_SCM_NO_DEV", "yes")
     monkeypatch.setenv("CALVER_SCM_FALLBACK", "date")
     monkeypatch.setenv("CALVER_SCM_TAG_PREFIX", "release-")
     monkeypatch.setenv("CALVER_SCM_TIMEZONE", "UTC")
@@ -106,6 +109,7 @@ def test_overlay_env_overrides_values(monkeypatch: pytest.MonkeyPatch) -> None:
     assert cfg.scheme == "YYYY.MM.DD"
     assert cfg.patch is False
     assert cfg.stable is False
+    assert cfg.no_dev is True
     assert cfg.fallback is FallbackMode.DATE
     assert cfg.tag_prefix == "release-"
     assert cfg.timezone == "UTC"
@@ -145,6 +149,24 @@ def test_overlay_env_accepts_truthy_stable_value(
     monkeypatch.setenv("CALVER_SCM_STABLE", "on")
     cfg = CalverConfig.overlay_env(CalverConfig(stable=False))
     assert cfg.stable is True
+
+
+def test_overlay_env_rejects_invalid_no_dev_value(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Raise a helpful error when CALVER_SCM_NO_DEV cannot be parsed as bool."""
+    monkeypatch.setenv("CALVER_SCM_NO_DEV", "maybe")
+    with pytest.raises(ValueError, match="Invalid CALVER_SCM_NO_DEV value"):
+        CalverConfig.overlay_env(CalverConfig())
+
+
+def test_overlay_env_accepts_falsy_no_dev_value(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Treat falsy env values as no_dev disabled."""
+    monkeypatch.setenv("CALVER_SCM_NO_DEV", "off")
+    cfg = CalverConfig.overlay_env(CalverConfig(no_dev=True))
+    assert cfg.no_dev is False
 
 
 def test_load_calver_config_reads_pyproject_and_env(
