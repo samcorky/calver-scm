@@ -202,6 +202,26 @@ def test_load_calver_config_defaults_when_file_missing(tmp_path: Path) -> None:
     assert cfg == CalverConfig()
 
 
+def test_load_calver_config_distinguishes_roots(tmp_path: Path) -> None:
+    """Keep independent config caches per project root for monorepo packages."""
+    pkg_a = tmp_path / "pkg-a"
+    pkg_b = tmp_path / "pkg-b"
+    pkg_a.mkdir()
+    pkg_b.mkdir()
+
+    (pkg_a / "pyproject.toml").write_text(
+        '[tool.calver-scm]\nmode = "month"\n',
+        encoding="utf-8",
+    )
+    (pkg_b / "pyproject.toml").write_text(
+        '[tool.calver-scm]\nmode = "day"\n',
+        encoding="utf-8",
+    )
+
+    assert _load_calver_config(pkg_a).mode is CalverMode.MONTH
+    assert _load_calver_config(pkg_b).mode is CalverMode.DAY
+
+
 def test_load_calver_config_raises_for_invalid_toml(tmp_path: Path) -> None:
     """Wrap TOML decode failures in a runtime error message."""
     (tmp_path / "pyproject.toml").write_text("[tool.calver-scm\n", encoding="utf-8")
