@@ -4,7 +4,7 @@ import os
 import sys
 from dataclasses import dataclass
 from enum import Enum
-from functools import lru_cache
+from functools import cache
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -268,7 +268,7 @@ class CalverConfig:
         return cls.from_dict(data)
 
 
-@lru_cache(maxsize=1)
+@cache
 def _load_calver_config(root: Path) -> CalverConfig:
     """Load config from pyproject.toml, then override with environment variables."""
     pyproject = root / "pyproject.toml"

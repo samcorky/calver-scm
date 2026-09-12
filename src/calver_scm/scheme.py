@@ -19,14 +19,27 @@ if TYPE_CHECKING:
     from setuptools_scm.version import ScmVersion
 
 
+def _resolve_project_root(version: ScmVersion) -> Path:
+    """Resolve the project-local directory used for config lookup."""
+    config = version.config
+    absolute_root: Path | None = getattr(config, "absolute_root", None)
+    project_path: Path | None = getattr(config, "project_path", None)
+    if absolute_root is not None and project_path is not None:
+        return (Path(absolute_root) / Path(project_path)).resolve()
+
+    root = getattr(config, "root", None) if config is not None else None
+    return Path(root or ".").resolve()
+
+
 def calver_scm(version: ScmVersion) -> str:
     """Return a CalVer version string derived from SCM state."""
-    root = Path(getattr(version.config, "root", None) or ".").resolve()
+    root = _resolve_project_root(version)
     cfg = _load_calver_config(root)
     today = _today_in_timezone(cfg.timezone)
     base = _base(today, cfg)
 
     if version.tag is None:
+        # noinspection unreachable-code
         return _apply_stability_prefix(
             _fallback_version(
                 base=base,

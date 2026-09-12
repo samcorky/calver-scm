@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from calver_scm.config import CalverConfig, CalverMode
+from calver_scm.config import CalverConfig, CalverMode, _load_calver_config
 from calver_scm.scheme import calver_scm
 
 if TYPE_CHECKING:
@@ -378,6 +378,51 @@ def test_clean_checkout_on_old_formatted_tag_preserves_normalized_release(
     )
     version = make_scm_version(root=root, tag=tag, distance=0, dirty=False)
     assert calver_scm(version) == expected
+
+
+def test_calver_scm_uses_project_root_from_absolute_root_and_project_path(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Use the package-local config when setuptools-scm uses the shared root."""
+    repo_root = tmp_path / "repo"
+    pkg_root = repo_root / "packages" / "foo"
+    pkg_root.mkdir(parents=True)
+
+    (pkg_root / "pyproject.toml").write_text(
+        "\n".join(
+            [
+                "[tool.calver-scm]",
+                'mode = "day"',
+                'tag_prefix = "foo-v"',
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    captured: dict[str, Path] = {}
+
+    def fake_load(root: Path) -> CalverConfig:
+        captured["root"] = root
+        return _load_calver_config(root)
+
+    monkeypatch.setattr("calver_scm.scheme._load_calver_config", fake_load)
+    monkeypatch.setattr(
+        "calver_scm.scheme._today_in_timezone", lambda _tz: dt.date(2026, 4, 15)
+    )
+
+    version: Any = SimpleNamespace(
+        config=SimpleNamespace(
+            absolute_root=str(repo_root),
+            project_path=Path("packages/foo"),
+            root="../..",
+        ),
+        tag=None,
+        distance=2,
+        dirty=False,
+    )
+    assert calver_scm(version) == "2026.4.15.0.dev2"
+    assert captured["root"] == pkg_root.resolve()
 
 
 def test_calver_scm_uses_current_directory_when_root_missing(
