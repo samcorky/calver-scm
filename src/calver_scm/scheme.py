@@ -21,13 +21,14 @@ if TYPE_CHECKING:
 
 def _resolve_project_root(version: ScmVersion) -> Path:
     """Resolve the project-local directory used for config lookup."""
-    absolute_root = version.config.absolute_root
-    project_path = version.config.project_path
+    config = version.config
+    absolute_root: Path | None = getattr(config, "absolute_root", None)
+    project_path: Path | None = getattr(config, "project_path", None)
     if absolute_root is not None and project_path is not None:
-        return (Path(absolute_root) / project_path).resolve()
+        return (Path(absolute_root) / Path(project_path)).resolve()
 
-    root = version.config.root or "."
-    return Path(root).resolve()
+    root = getattr(config, "root", None) if config is not None else None
+    return Path(root or ".").resolve()
 
 
 def calver_scm(version: ScmVersion) -> str:
