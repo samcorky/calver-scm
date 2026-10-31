@@ -39,7 +39,7 @@ uv run ruff check
 
 ## Coding guidelines
 
-- Target Python 3.10+.
+- Target Python 3.11+.
 - Keep changes focused and easy to review.
 - Add or update tests for behaviour changes.
 - Keep types strict and avoid introducing unnecessary `Any`.

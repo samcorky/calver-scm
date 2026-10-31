@@ -476,9 +476,8 @@ local_scheme   = "dirty-tag"         # +dirty on uncommitted changes (recommende
 
 ## Requirements
 
-- Python >= 3.10
+- Python >= 3.11
 - setuptools-scm >= 10.0.5
-- `tomli` >= 2.4.1 on Python < 3.11 (the stdlib `tomllib` is used on 3.11+)
 
 ---
 

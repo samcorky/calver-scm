@@ -80,5 +80,5 @@ def _today_in_timezone(timezone: str) -> datetime.date:
     if normalized == "local":
         return datetime.datetime.now().astimezone().date()
     if normalized == "utc":
-        return datetime.datetime.now(datetime.timezone.utc).date()
+        return datetime.datetime.now(datetime.UTC).date()
     return datetime.datetime.now(ZoneInfo(timezone.strip())).date()
