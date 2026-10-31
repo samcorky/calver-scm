@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import os
-import sys
+import tomllib
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from functools import cache
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any
@@ -12,23 +12,12 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 if TYPE_CHECKING:
     from pathlib import Path
 
-if sys.version_info >= (3, 11):  # pragma: no cover
-    # noinspection PyCompatibility
-    import tomllib
-else:  # pragma: no cover
-    # noinspection SpellCheckingInspection
-    import tomli as tomllib
-
 
 TRUE_ENV_VALUES = frozenset(("1", "true", "yes", "on"))
 FALSE_ENV_VALUES = frozenset(("0", "false", "no", "off"))
 
 
-class _StrEnum(str, Enum):
-    """Python 3.10-compatible string enum base class."""
-
-
-class CalverMode(_StrEnum):
+class CalverMode(StrEnum):
     """Built-in mode presets for deriving default scheme tokens."""
 
     YEAR = "year"
@@ -47,7 +36,7 @@ class CalverMode(_StrEnum):
             raise ValueError(f"Invalid mode: {value!r}") from e
 
 
-class FallbackMode(_StrEnum):
+class FallbackMode(StrEnum):
     """Fallback behaviour when no compatible tag can be parsed."""
 
     DEV = "dev"

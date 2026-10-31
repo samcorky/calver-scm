@@ -152,7 +152,7 @@ class _RecorderDateTime(dt.datetime):
         """Return a stable datetime and remember the supplied timezone."""
         cls.last_tz = tz
         # noinspection PyArgumentEqualDefault
-        baseline = dt.datetime(2026, 4, 15, 12, 0, tzinfo=dt.timezone.utc)
+        baseline = dt.datetime(2026, 4, 15, 12, 0, tzinfo=dt.UTC)
         value = baseline if tz is None else baseline.astimezone(tz)
         return cast("_RecorderDateTime", value)
 
@@ -170,7 +170,7 @@ def test_today_in_timezone_supports_local_and_utc(
     if timezone == "local":
         assert _RecorderDateTime.last_tz is None
     else:
-        assert _RecorderDateTime.last_tz is dt.timezone.utc
+        assert _RecorderDateTime.last_tz is dt.UTC
 
 
 def test_today_in_timezone_supports_iana_zone_with_stubbed_zoneinfo(
@@ -181,7 +181,7 @@ def test_today_in_timezone_supports_iana_zone_with_stubbed_zoneinfo(
 
     def fake_zoneinfo(name: str) -> dt.tzinfo:
         captured["name"] = name
-        return dt.timezone.utc
+        return dt.UTC
 
     monkeypatch.setattr("calver_scm.utils.datetime.datetime", _RecorderDateTime)
     monkeypatch.setattr("calver_scm.utils.ZoneInfo", fake_zoneinfo)

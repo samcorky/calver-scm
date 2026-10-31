@@ -2,10 +2,9 @@
 name = "calver-scm"
 dynamic = ["version", "readme"]
 description = "Automatic, date-based versioning for Python projects, powered by your Git history."
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
     "setuptools-scm>=10.0.5",
-    "tomli>=2.4.1; python_version < '3.11'",
 ]
 
 authors = [
@@ -25,11 +24,11 @@ classifiers = [
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Topic :: Software Development :: Build Tools",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Software Development :: Version Control",
@@ -150,7 +149,7 @@ exclude_lines = [
 line-length = 88
 fix = true
 show-fixes = true
-target-version = "py310"
+target-version = "py311"
 
 [tool.ruff.lint]
 select = [
