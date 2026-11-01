@@ -529,3 +529,17 @@ def test_readme_documents_every_error_and_check_code() -> None:
     readme = (Path(__file__).parents[1] / "README.md").read_text(encoding="utf-8")
     for code in [*IssueCode, *CheckCode]:
         assert f"`{code.value}`" in readme
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("argv", [[], ["--json"], ["--format", "plain"]])
+def test_no_command_shows_the_help_and_succeeds(
+    argv: list[str], capsys: pytest.CaptureFixture[str], flat: Callable[[str], str]
+) -> None:
+    """Show usage, not a traceback, when only global options are given."""
+    assert main(argv) == 0
+    captured = capsys.readouterr()
+    out = flat(captured.out)
+    assert "Usage: calver-scm COMMAND" in out
+    assert "Examples" in out
+    assert captured.err == ""
