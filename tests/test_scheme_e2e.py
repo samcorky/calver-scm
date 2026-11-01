@@ -65,7 +65,7 @@ def test_calver_scm_respects_patch_false(
 @pytest.mark.parametrize(
     ("patch", "no_dev", "tag", "distance", "today", "expected"),
     [
-        # patch=True, no_dev=False (default behavior)
+        # patch=True, no_dev=False (default behaviour)
         (True, False, "v2026.04.2", 3, dt.date(2026, 4, 15), "2026.4.3.dev3"),
         (True, False, "v2026.04.2", 3, dt.date(2026, 5, 1), "2026.5.0.dev3"),
         (True, False, None, 12, dt.date(2026, 4, 15), "2026.4.0.dev12"),
@@ -261,7 +261,7 @@ def test_calver_scm_fallback_for_unparsable_or_incompatible_tag(
     assert calver_scm(incompatible_tag) == "2026.4.15.0.dev4"
 
 
-def test_calver_scm_honors_custom_tag_prefix(
+def test_calver_scm_honours_custom_tag_prefix(
     write_pyproject: Callable[[str], Path],
     make_scm_version: Callable[..., Any],
     set_today: Callable[[dt.date], None],
@@ -332,7 +332,7 @@ def test_old_formatted_tag_in_history_rolls_forward_to_calver_dev_version(
         ("v2025.12", "2025.12.0"),
     ],
 )
-def test_clean_checkout_on_old_formatted_tag_preserves_normalized_release(
+def test_clean_checkout_on_old_formatted_tag_preserves_normalised_release(
     write_pyproject: Callable[[str], Path],
     make_scm_version: Callable[..., Any],
     set_today: Callable[[dt.date], None],

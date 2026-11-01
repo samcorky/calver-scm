@@ -55,7 +55,7 @@ GOLDEN = [
         "2026.4.0.dev3",
         id="no-components-ahead",
     ),
-    # exact clean tag -> normalized tag, even for a historical period
+    # exact clean tag -> normalised tag, even for a historical period
     pytest.param(MONTH, "v2026.04.2", 0, False, APR, "2026.4.2", id="exact"),
     pytest.param(MONTH, "v2025.01.1", 0, False, APR, "2025.1.1", id="exact-historical"),
     pytest.param(

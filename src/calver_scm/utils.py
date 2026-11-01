@@ -76,9 +76,9 @@ def _apply_stability_prefix(version: str, cfg: CalverConfig) -> str:
 
 def _today_in_timezone(timezone: str) -> datetime.date:
     """Return today's date in configured timezone semantics."""
-    normalized = timezone.strip().lower()
-    if normalized == "local":
+    normalised = timezone.strip().lower()
+    if normalised == "local":
         return datetime.datetime.now().astimezone().date()
-    if normalized == "utc":
+    if normalised == "utc":
         return datetime.datetime.now(datetime.UTC).date()
     return datetime.datetime.now(ZoneInfo(timezone.strip())).date()

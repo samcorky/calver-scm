@@ -58,7 +58,7 @@ Things worth knowing when changing this code:
   setuptools-scm applies the `local_scheme` afterwards, so the final build
   version can carry a suffix such as `+g1a2b3c4.d20260415`.
 - With setuptools-scm 10, `ScmVersion.distance` is always an `int` and `tag` is
-  already prefix-stripped and normalized. A repository with no tags reaches the
+  already prefix-stripped and normalised. A repository with no tags reaches the
   scheme as tag `0.0`, so it takes the incompatible-tag fallback rather than the
   no-tag one.
 - A parseable tag without usable release components falls back even when it is
@@ -89,7 +89,7 @@ Things worth knowing when changing this code:
   no patching is needed.
 - For adapter and end-to-end tests, freeze the clock with the `set_today`
   fixture (backed by `time-machine`) instead of monkeypatching.
-- [`tests/test_scheme_characterization.py`](tests/test_scheme_characterization.py)
+- [`tests/test_scheme_characterisation.py`](tests/test_scheme_characterisation.py)
   is a golden table of every decision branch. If it changes, output changed.
 - Add end-to-end coverage for version parsing/scheme behaviour changes.
 - Do not reduce coverage.

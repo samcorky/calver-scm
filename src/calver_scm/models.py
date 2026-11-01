@@ -14,7 +14,7 @@ class ScmContext:
 
     `tag` is the textual tag as setuptools-scm hands it to the version scheme.
     With setuptools-scm 10 that is already prefix-stripped and PEP 440
-    normalized (`2026.4.2`), and a repository without tags arrives as `0.0` at
+    normalised (`2026.4.2`), and a repository without tags arrives as `0.0` at
     a positive distance rather than as `None`. `None` remains valid input for
     callers that have no tag at all.
 

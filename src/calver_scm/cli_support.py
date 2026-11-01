@@ -61,7 +61,7 @@ def _build_options(
     tool: dict[str, Any] = data.get("tool", {})
 
     if "setuptools_scm" in tool:
-        options = _normalize_keys(tool["setuptools_scm"])
+        options = _normalise_keys(tool["setuptools_scm"])
         options.setdefault("root", ".")
         options["relative_to"] = pyproject
         name = data.get("project", {}).get("name")
@@ -71,7 +71,7 @@ def _build_options(
 
     hatch_version: dict[str, Any] = tool.get("hatch", {}).get("version", {})
     if hatch_version.get("source") == "vcs":
-        options = _normalize_keys(hatch_version.get("raw-options", {}))
+        options = _normalise_keys(hatch_version.get("raw-options", {}))
         # hatch-vcs hands root to setuptools-scm unchanged, which resolves it
         # against the working directory; builds run from the project directory.
         options["root"] = str((project_root / options.get("root", ".")).resolve())
@@ -87,6 +87,6 @@ def _build_options(
     )
 
 
-def _normalize_keys(table: dict[str, Any]) -> dict[str, Any]:
+def _normalise_keys(table: dict[str, Any]) -> dict[str, Any]:
     """Return a copy with hyphenated keys converted to keyword names."""
     return {key.replace("-", "_"): value for key, value in table.items()}
