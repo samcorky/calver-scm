@@ -4,16 +4,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from calver_scm.config import _load_calver_config
-from calver_scm.parser import _parse_tag, _release_components
-from calver_scm.utils import (
-    _apply_stability_prefix,
-    _base,
-    _fallback_version,
-    _format_date_parts,
-    _format_dev_version,
-    _is_same_period,
-    _today_in_timezone,
-)
+from calver_scm.engine import resolve_version
+from calver_scm.models import ScmContext
+from calver_scm.utils import _today_in_timezone
 
 if TYPE_CHECKING:
     from setuptools_scm.version import ScmVersion
@@ -31,69 +24,17 @@ def _resolve_project_root(version: ScmVersion) -> Path:
     return Path(root or ".").resolve()
 
 
+def _scm_context(version: ScmVersion) -> ScmContext:
+    """Convert a setuptools-scm version into the engine's input snapshot."""
+    return ScmContext(
+        tag=None if version.tag is None else str(version.tag),
+        distance=version.distance,
+        dirty=version.dirty,
+    )
+
+
 def calver_scm(version: ScmVersion) -> str:
     """Return a CalVer version string derived from SCM state."""
-    root = _resolve_project_root(version)
-    cfg = _load_calver_config(root)
+    cfg = _load_calver_config(_resolve_project_root(version))
     today = _today_in_timezone(cfg.timezone)
-    base = _base(today, cfg)
-
-    if version.tag is None:
-        # noinspection unreachable-code
-        return _apply_stability_prefix(
-            _fallback_version(
-                base=base,
-                distance=version.distance,
-                fallback=cfg.fallback,
-                no_dev=cfg.no_dev,
-            ),
-            cfg,
-        )
-
-    parsed = _parse_tag(str(version.tag), cfg)
-
-    if parsed is None:
-        return _apply_stability_prefix(
-            _fallback_version(
-                base=base,
-                distance=version.distance,
-                fallback=cfg.fallback,
-                no_dev=cfg.no_dev,
-            ),
-            cfg,
-        )
-
-    components = _release_components(parsed, cfg)
-
-    if components is None:
-        return _apply_stability_prefix(
-            _fallback_version(
-                base=base,
-                distance=version.distance,
-                fallback=cfg.fallback,
-                no_dev=cfg.no_dev,
-            ),
-            cfg,
-        )
-
-    tag_date_parts, tag_patch = components
-
-    if version.distance == 0 and not version.dirty:
-        tag_base = _format_date_parts(tag_date_parts, cfg)
-        return _apply_stability_prefix(
-            parsed.format_from_base(base=tag_base, patch=tag_patch),
-            cfg,
-        )
-
-    same_period = _is_same_period(today, tag_date_parts, cfg)
-    patch = (tag_patch + 1) if same_period and cfg.patch else 0
-
-    return _apply_stability_prefix(
-        _format_dev_version(
-            base=base,
-            patch=patch,
-            distance=version.distance,
-            no_dev=cfg.no_dev,
-        ),
-        cfg,
-    )
+    return resolve_version(_scm_context(version), cfg, today=today).public_version
