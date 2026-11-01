@@ -7,7 +7,15 @@ import pytest
 
 pytestmark = pytest.mark.unit
 
-PURE_MODULES = ["models", "engine", "parser", "utils", "calver_version", "config"]
+PURE_MODULES = [
+    "models",
+    "engine",
+    "parser",
+    "utils",
+    "calver_version",
+    "config",
+    "validation",
+]
 
 
 @pytest.mark.parametrize("module", PURE_MODULES)
