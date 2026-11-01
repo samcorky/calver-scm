@@ -499,6 +499,30 @@ calver-scm validate 2026.13.1 --json         # {"valid": false, "input": ..., "e
 
 `validate` checks that a version is valid PEP 440 and fits your configured scheme: the number of date components, calendar ranges (month 1-12, real days of the month, week 1-53), the `stable` setting's `0.` prefix and, with `--tag`, the `tag_prefix`. Pre-release, post-release, dev and local suffixes are accepted. It reads `[tool.calver-scm]` (and `CALVER_SCM_*` overrides) from `--root` but needs no Git checkout. Week 53 is accepted in any year because `YYYY.WW` takes its year from the calendar date, not the ISO week-year.
 
+### Explaining a version
+
+```bash
+calver-scm explain
+```
+
+Shows how the build version was derived: the tag, commit distance and dirty flag that setuptools-scm supplied, the date and timezone used, which branch of the algorithm ran (`exact_tag`, `patch_incremented`, `patch_reset`, `no_tag_fallback` or `incompatible_tag_fallback`), the effective configuration, and any `CALVER_SCM_*` overrides in force. It separates the `public_version` that calver-scm produced from the `local_segment` that your `local_scheme` appended afterwards. It runs the same code path as a real build, and it never prints absolute paths.
+
+### Diagnosing problems
+
+```bash
+calver-scm doctor
+```
+
+Runs independent checks and carries on past failures: whether the build configuration uses the calver-scm scheme, whether `[tool.calver-scm]` and the environment overrides are valid, whether Git is available, whether the version resolves, and warnings for shallow clones, a missing compatible tag, and `no_dev` combined with a local segment. Each finding has a code, a severity (`ok`, `info`, `warning` or `error`) and, where useful, a suggested fix. Warnings never fail the command; errors do. Error details can include file paths.
+
+### Planning the next release tag
+
+```bash
+git tag "$(calver-scm next-tag)"     # prints e.g. v2026.4.3
+```
+
+`next-tag` is read-only: it proposes a tag and never creates or pushes one. It looks at every local tag, not only those reachable from HEAD, so a number used on another branch is not reused. Pre-releases and dev releases occupy no number, post-releases do, and tags that do not fit the scheme are ignored. It honours `tag_prefix`, `stable` and the timezone. With `patch = false` it refuses a second release in the same period. It also refuses a shallow clone, because the tag list cannot be trusted. Tags that exist only on the remote and have not been fetched cannot be seen, so run `git fetch --tags` first.
+
 ### Output formats
 
 Pick how results are written with the global `--format` option, before or after the command:
@@ -518,7 +542,7 @@ calver-scm --format json version
 
 Piping or redirecting therefore always gives plain text without needing a flag. Errors are always plain text on stderr, whatever the format.
 
-The verdict, valid or not, goes to stdout so `--json` stays parseable. Errors go to stderr. Exit codes: `0` success or valid, `1` invalid input, `2` invalid usage, bad configuration, or the version could not be resolved. `calver-scm --version` prints the installed `calver-scm` release.
+The verdict, valid or not, goes to stdout so `--json` stays parseable. Errors go to stderr. Exit codes: `0` success or valid, `1` invalid input or `doctor` found errors, `2` invalid usage, bad configuration, or the version could not be resolved, `3` `next-tag` cannot propose a safe tag. `calver-scm --version` prints the installed `calver-scm` release.
 
 Without the `cli` extra the `calver-scm` command still exists but only prints how to install it.
 

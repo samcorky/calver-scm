@@ -15,6 +15,7 @@ PURE_MODULES = [
     "calver_version",
     "config",
     "validation",
+    "release",
 ]
 
 

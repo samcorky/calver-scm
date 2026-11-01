@@ -23,3 +23,11 @@ def test_resolve_format(
 ) -> None:
     """Only auto depends on the terminal; explicit choices always win."""
     assert resolve_format(requested, is_tty=is_tty) is expected
+
+
+def test_every_resolution_reason_has_a_summary() -> None:
+    """Keep the human summaries in step with the engine's reasons."""
+    from calver_scm.cli_output import REASON_SUMMARIES
+    from calver_scm.models import ResolutionReason
+
+    assert set(REASON_SUMMARIES) == {reason.value for reason in ResolutionReason}

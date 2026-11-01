@@ -1,12 +1,23 @@
 from __future__ import annotations
 
+import os
+import subprocess
 import tomllib
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from setuptools_scm import get_version
 
+from calver_scm.calver_version import CalverVersion
+from calver_scm.scheme import resolve_scm_version
+
 if TYPE_CHECKING:
     from pathlib import Path
+
+    from setuptools_scm.version import ScmVersion
+
+    from calver_scm.config import CalverConfig
+    from calver_scm.models import VersionResolution
 
 SCHEME_NAME = "calver-scm"
 
@@ -20,6 +31,21 @@ class ResolutionError(Exception):
     """Raised when the build version cannot be resolved for a project."""
 
 
+@dataclass(frozen=True, slots=True)
+class BuildExplanation:
+    """The full build version together with how the CalVer scheme produced it."""
+
+    version: str
+    resolution: VersionResolution
+    config: CalverConfig
+    env_overrides: tuple[tuple[str, str], ...]
+
+    @property
+    def local_segment(self) -> str | None:
+        """The local version segment, if any, of the full build version."""
+        return CalverVersion(self.version).local
+
+
 def resolve_build_version(root: Path) -> str:
     """Return the full version the project's build backend would produce.
 
@@ -27,6 +53,39 @@ def resolve_build_version(root: Path) -> str:
     setuptools-scm's public `get_version`, exactly as the supported build
     integrations (setuptools and Hatch-VCS) do.
     """
+    return _get_version(_checked_options(root))
+
+
+def explain_build_version(root: Path) -> BuildExplanation:
+    """Resolve the build version and capture how the CalVer scheme derived it.
+
+    The scheme callback is wrapped, not re-implemented: setuptools-scm runs the
+    same `resolve_scm_version` path as a real build and the result is recorded.
+    """
+    options = _checked_options(root)
+    captured: list[tuple[VersionResolution, CalverConfig]] = []
+
+    def capturing_scheme(version: ScmVersion) -> str:
+        resolution, config = resolve_scm_version(version)
+        captured.append((resolution, config))
+        return resolution.public_version
+
+    options["version_scheme"] = capturing_scheme
+    full_version = _get_version(options)
+    if not captured:
+        raise ResolutionError(
+            "setuptools-scm did not call the calver-scm version scheme; a pretend "
+            "version override such as SETUPTOOLS_SCM_PRETEND_VERSION may be set"
+        )
+    resolution, config = captured[-1]
+    overrides = tuple(
+        sorted((k, v) for k, v in os.environ.items() if k.startswith("CALVER_SCM_"))
+    )
+    return BuildExplanation(full_version, resolution, config, overrides)
+
+
+def _checked_options(root: Path) -> dict[str, Any]:
+    """Read the project's setuptools-scm settings and require the CalVer scheme."""
     project_root = root.resolve()
     pyproject = project_root / "pyproject.toml"
     try:
@@ -47,11 +106,17 @@ def resolve_build_version(root: Path) -> str:
 
     for key in _WRITE_OPTIONS:
         options.pop(key, None)
+    return options
 
+
+def _get_version(options: dict[str, Any]) -> str:
     try:
         return get_version(**options)
     except LookupError as e:
         raise ResolutionError(f"setuptools-scm could not resolve a version: {e}") from e
+    except RuntimeError as e:
+        # The version scheme raises RuntimeError for an invalid CalVer configuration.
+        raise ResolutionError(str(e)) from e
 
 
 def _build_options(
@@ -90,3 +155,29 @@ def _build_options(
 def _normalise_keys(table: dict[str, Any]) -> dict[str, Any]:
     """Return a copy with hyphenated keys converted to keyword names."""
     return {key.replace("-", "_"): value for key, value in table.items()}
+
+
+def is_shallow_repository(project: Path) -> bool:
+    """Whether the repository containing `project` is a shallow clone."""
+    result = subprocess.run(
+        ["git", "rev-parse", "--is-shallow-repository"],
+        cwd=project,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return result.returncode == 0 and result.stdout.strip() == "true"
+
+
+def list_local_tags(project: Path) -> list[str]:
+    """Return every tag known to the local repository containing `project`."""
+    result = subprocess.run(
+        ["git", "tag", "--list"],
+        cwd=project,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise ResolutionError(f"Could not list Git tags: {result.stderr.strip()}")
+    return result.stdout.splitlines()

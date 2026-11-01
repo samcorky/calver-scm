@@ -291,3 +291,145 @@ def test_unknown_format_is_a_usage_error(capsys: pytest.CaptureFixture[str]) -> 
     """Reject values outside auto, rich, plain and json."""
     assert main(["--format", "yaml", "validate", "2026.4.2"]) == 2
     assert capsys.readouterr().out == ""
+
+
+def _plain_explanation(out: str) -> dict[str, str]:
+    return dict(line.split(": ", 1) for line in out.splitlines())
+
+
+@pytest.mark.e2e
+def test_explain_describes_a_patch_reset(
+    project: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Report each fact behind a version from an earlier tagged period."""
+    with time_machine.travel(_noon(2026, 4, 15), tick=False):
+        assert main(["explain", "--root", str(project)]) == 0
+    facts = _plain_explanation(capsys.readouterr().out)
+    assert facts == {
+        "version": "2026.4.0.dev3",
+        "public_version": "2026.4.0.dev3",
+        "local_segment": "none",
+        "reason": "patch_reset",
+        "scm.tag": "2020.1.4",
+        "scm.distance": "3",
+        "scm.dirty": "false",
+        "calculation.date": "2026-04-15",
+        "calculation.timezone": "UTC",
+        "calculation.base": "2026.4",
+        "calculation.tag_base": "2020.1",
+        "calculation.tag_patch": "4",
+        "calculation.patch": "0",
+        "config.mode": "month",
+        "config.scheme": "YYYY.MM",
+        "config.patch": "true",
+        "config.stable": "true",
+        "config.no_dev": "false",
+        "config.fallback": "dev",
+        "config.tag_prefix": "v",
+    }
+
+
+@pytest.mark.e2e
+def test_explain_distinguishes_public_version_from_local_segment(
+    make_git_project: Callable[..., Path], capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Show the suffix setuptools-scm adds after the CalVer scheme has run."""
+    project = make_git_project(
+        SETUPTOOLS.replace("no-local-version", "node-and-date"),
+        tag="v2026.04.2",
+        commits_after_tag=1,
+    )
+    with time_machine.travel(_noon(2026, 4, 15), tick=False):
+        assert main(["--json", "explain", "--root", str(project)]) == 0
+    data = json.loads(capsys.readouterr().out)
+    assert data["public_version"] == "2026.4.3.dev1"
+    assert data["reason"] == "patch_incremented"
+    assert data["local_segment"].startswith("g")
+    assert data["version"] == f"{data['public_version']}+{data['local_segment']}"
+    assert data["calculation"]["tag_patch"] == 2
+    assert data["calculation"]["patch"] == 3
+
+
+@pytest.mark.e2e
+def test_explain_reports_exact_tag_and_environment_overrides(
+    make_git_project: Callable[..., Path],
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Report a clean tag as is, and list the active CALVER_SCM_* variables."""
+    monkeypatch.setenv("CALVER_SCM_NO_DEV", "true")
+    project = make_git_project(SETUPTOOLS, tag="v2026.04.2")
+    assert main(["--json", "explain", "--root", str(project)]) == 0
+    data = json.loads(capsys.readouterr().out)
+    assert data["reason"] == "exact_tag"
+    assert data["version"] == "2026.4.2"
+    assert data["env_overrides"] == {"CALVER_SCM_NO_DEV": "true"}
+    assert data["config"]["no_dev"] is True
+
+
+@pytest.mark.e2e
+def test_explain_a_repository_without_tags_uses_the_fallback(
+    make_git_project: Callable[..., Path], capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Explain the fallback; setuptools-scm supplies tag 0.0 when none exists."""
+    project = make_git_project(SETUPTOOLS)
+    with time_machine.travel(_noon(2026, 4, 15), tick=False):
+        assert main(["--json", "explain", "--root", str(project)]) == 0
+    data = json.loads(capsys.readouterr().out)
+    assert data["reason"] == "incompatible_tag_fallback"
+    assert data["scm"]["tag"] == "0.0"
+    assert data["calculation"]["tag_base"] is None
+    assert data["calculation"]["tag_patch"] is None
+
+
+@pytest.mark.e2e
+def test_explain_rich_output_has_labelled_sections(
+    project: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Group the facts under headings and summarise the decision in words."""
+    with time_machine.travel(_noon(2026, 4, 15), tick=False):
+        assert main(["--format", "rich", "explain", "--root", str(project)]) == 0
+    out = capsys.readouterr().out
+    assert out.startswith("Version 2026.4.0.dev3\n")
+    for heading in ("Scm", "Calculation", "Config", "Env Overrides", "(none)"):
+        assert heading in out
+    assert "so the patch is 0." in out
+
+
+@pytest.mark.e2e
+def test_explain_fails_when_the_scheme_is_bypassed(
+    project: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Refuse to explain a version that setuptools-scm took from an override."""
+    monkeypatch.setenv("SETUPTOOLS_SCM_PRETEND_VERSION", "9.9.9")
+    assert main(["explain", "--root", str(project)]) == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "did not call the calver-scm version scheme" in captured.err
+
+
+@pytest.mark.unit
+def test_explain_reports_resolution_errors(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Exit 2 with a message on stderr when the project cannot be resolved."""
+    assert main(["explain", "--root", str(tmp_path)]) == 2
+    assert capsys.readouterr().err.startswith("error: No pyproject.toml")
+
+
+@pytest.mark.e2e
+@pytest.mark.parametrize("command", ["version", "explain"])
+def test_invalid_calver_configuration_is_a_clean_error(
+    project: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    command: str,
+) -> None:
+    """Exit 2 with a message, not a traceback, when the CalVer settings are invalid."""
+    monkeypatch.setenv("CALVER_SCM_MODE", "decade")
+    assert main([command, "--root", str(project)]) == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == "error: Invalid config: Invalid mode: 'decade'\n"
