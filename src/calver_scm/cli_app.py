@@ -98,7 +98,9 @@ def launcher(
     output = Output(resolve_format(requested, is_tty=sys.stdout.isatty()))
     command, bound, ignored = app.parse_args(tokens)
     extra = dict.fromkeys(ignored, output)
-    return int(command(*bound.args, **bound.kwargs, **extra))
+    result = command(*bound.args, **bound.kwargs, **extra)
+    # The built-in help page, shown when no command is given, returns None.
+    return EXIT_OK if result is None else int(result)
 
 
 @app.command(
