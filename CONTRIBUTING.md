@@ -21,7 +21,7 @@ uv run poe init       # installs the git hooks
 ```
 
 `poe init` installs a pre-commit hook (formatting and lint checks) and a pre-push
-hook (runs the tests). Hooks are run by [prek](https://github.com/j178/prek), a
+hook that runs only the fast `unit` tests (`poe test-fast`); CI runs everything. Hooks are run by [prek](https://github.com/j178/prek), a
 drop-in replacement for `pre-commit` that reads the same `.pre-commit-config.yaml`.
 `poe init` also replaces any shim left by an earlier `pre-commit install`.
 
@@ -109,6 +109,9 @@ Things worth knowing when changing this code:
 - [`tests/test_scheme_characterisation.py`](tests/test_scheme_characterisation.py)
   is a golden table of every decision branch. If it changes, output changed.
 - Add end-to-end coverage for version parsing/scheme behaviour changes.
+- Every test needs exactly one scope marker, `unit` (fast) or `e2e`. Tests in
+  `tests/test_cli*.py` also get the `cli` marker automatically, so `pytest -m cli`
+  and `pytest -m "not cli"` select them.
 - Do not reduce coverage.
 
 ## Pull requests

@@ -129,6 +129,7 @@ format-check = { cmd = "ruff format --check .", help = "Check formatting (as CI 
 lint = { cmd = "ruff check --no-fix .", help = "Lint without changing files" }
 types = { cmd = "mypy .", help = "Type-check with mypy" }
 test = { cmd = "pytest", help = "Run the test suite with coverage" }
+test-fast = { cmd = "pytest -m unit --no-cov", help = "Run only the fast unit tests (used on pre-push)" }
 check = { sequence = ["format-check", "lint", "types", "test"], help = "Run every CI check (ruff, mypy, pytest)" }
 fix = { sequence = ["fmt", "lint-fix"], help = "Apply formatting and auto-fixable lint fixes" }
 fmt = { cmd = "ruff format .", help = "Format code" }
@@ -146,6 +147,7 @@ testpaths = ["tests"]
 markers = [
     "unit: fast, module-scoped unit tests",
     "e2e: end-to-end calver_scm behaviour tests",
+    "cli: tests of the calver-scm command (added automatically to tests/test_cli*.py)",
 ]
 addopts = [
     "--tb=short",
