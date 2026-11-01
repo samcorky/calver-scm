@@ -45,6 +45,7 @@ Versions look like this:
 - [Configuration](#configuration)
 - [Environment variable overrides](#environment-variable-overrides)
 - [Local scheme](#local-scheme)
+- [Command line](#command-line)
 - [Requirements](#requirements)
 - [Contributing](#contributing)
 - [Security](#security)
@@ -471,6 +472,55 @@ local_scheme   = "dirty-tag"         # +dirty on uncommitted changes (recommende
 # local_scheme = "no-local-version"  # suppress the local segment entirely
 # local_scheme = "node-and-date"     # +g1a2b3c4.d20260415 (setuptools-scm default)
 ```
+
+---
+
+## Command line
+
+An optional command line reports the version your project's build would produce, without building anything.
+
+```bash
+pip install 'calver-scm[cli]'
+```
+
+```bash
+calver-scm version                  # 2026.4.3.dev3+g1a2b3c4
+calver-scm version --root ./backend # a project in a subdirectory
+calver-scm version --json           # {"version": "2026.4.3.dev3+g1a2b3c4"}
+```
+
+`version` reads the project's own `[tool.setuptools_scm]` or Hatch-VCS `[tool.hatch.version]` settings and asks setuptools-scm for the result, so it includes your `local_scheme` and honours `CALVER_SCM_*` overrides. It fails if the project does not use `version_scheme = "calver-scm"`.
+
+```bash
+calver-scm validate 2026.4.2                 # valid: 2026.4.2
+calver-scm validate v2026.4.2 --tag          # check a Git tag, including its prefix
+calver-scm validate 2026.13.1 --json         # {"valid": false, "input": ..., "errors": [...]}
+```
+
+`validate` checks that a version is valid PEP 440 and fits your configured scheme: the number of date components, calendar ranges (month 1-12, real days of the month, week 1-53), the `stable` setting's `0.` prefix and, with `--tag`, the `tag_prefix`. Pre-release, post-release, dev and local suffixes are accepted. It reads `[tool.calver-scm]` (and `CALVER_SCM_*` overrides) from `--root` but needs no Git checkout. Week 53 is accepted in any year because `YYYY.WW` takes its year from the calendar date, not the ISO week-year.
+
+### Output formats
+
+Pick how results are written with the global `--format` option, before or after the command:
+
+| Format | Output |
+| --- | --- |
+| `auto` (default) | `rich` when stdout is a terminal, otherwise `plain` |
+| `rich` | Coloured, human-friendly output (honours `NO_COLOR`) |
+| `plain` | Unstyled text, one value per line, for scripts |
+| `json` | A single JSON object; `--json` is shorthand for `--format json` |
+
+```bash
+calver-scm version                    # rich in a terminal
+calver-scm version | cat              # plain: 2026.4.3.dev3+g1a2b3c4
+calver-scm --format json version
+```
+
+Piping or redirecting therefore always gives plain text without needing a flag. Errors are always plain text on stderr, whatever the format.
+
+The verdict, valid or not, goes to stdout so `--json` stays parseable. Errors go to stderr. Exit codes: `0` success or valid, `1` invalid input, `2` invalid usage, bad configuration, or the version could not be resolved. `calver-scm --version` prints the installed `calver-scm` release.
+
+Without the `cli` extra the `calver-scm` command still exists but only prints how to install it.
 
 ---
 

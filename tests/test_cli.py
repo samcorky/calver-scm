@@ -1,0 +1,293 @@
+from __future__ import annotations
+
+import datetime as dt
+import json
+import sys
+from typing import TYPE_CHECKING
+
+import pytest
+import time_machine
+
+from calver_scm.cli import MISSING_EXTRA_MESSAGE, main
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    from pathlib import Path
+
+SETUPTOOLS = """
+[project]
+name = "demo"
+dynamic = ["version"]
+[tool.setuptools_scm]
+version_scheme = "calver-scm"
+local_scheme = "no-local-version"
+"""
+
+
+@pytest.fixture
+def project(make_git_project: Callable[..., Path]) -> Path:
+    """A project three commits past a tag from an earlier month."""
+    return make_git_project(SETUPTOOLS, tag="v2020.01.4", commits_after_tag=3)
+
+
+@pytest.mark.e2e
+def test_version_prints_the_build_version(
+    project: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Print one plain version string on stdout."""
+    with time_machine.travel(_noon(2026, 4, 15), tick=False):
+        assert main(["version", "--root", str(project)]) == 0
+    captured = capsys.readouterr()
+    assert captured.out == "2026.4.0.dev3\n"
+    assert captured.err == ""
+
+
+@pytest.mark.e2e
+def test_version_json(project: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """Print only a JSON object on stdout when --json is given."""
+    with time_machine.travel(_noon(2026, 4, 15), tick=False):
+        assert main(["version", "--root", str(project), "--json"]) == 0
+    captured = capsys.readouterr()
+    assert json.loads(captured.out) == {"version": "2026.4.0.dev3"}
+    assert captured.err == ""
+
+
+@pytest.mark.e2e
+def test_version_defaults_to_the_current_directory(
+    project: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Resolve the project in the working directory when --root is omitted."""
+    monkeypatch.chdir(project)
+    with time_machine.travel(_noon(2026, 4, 15), tick=False):
+        assert main(["version"]) == 0
+    assert capsys.readouterr().out == "2026.4.0.dev3\n"
+
+
+@pytest.mark.unit
+def test_resolution_failure_exits_2_with_message_on_stderr(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Keep stdout empty and explain the failure on stderr."""
+    assert main(["version", "--root", str(tmp_path)]) == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err.startswith("error: No pyproject.toml")
+
+
+@pytest.mark.unit
+def test_invalid_invocation_exits_2(capsys: pytest.CaptureFixture[str]) -> None:
+    """Report unknown options as usage errors."""
+    assert main(["version", "--bogus"]) == 2
+    assert capsys.readouterr().out == ""
+
+
+@pytest.mark.unit
+def test_help_and_version_flags_succeed(capsys: pytest.CaptureFixture[str]) -> None:
+    """Show help and the installed package version without error."""
+    assert main(["--help"]) == 0
+    assert "version" in capsys.readouterr().out
+    assert main(["--version"]) == 0
+    assert capsys.readouterr().out.strip()
+
+
+@pytest.mark.unit
+def test_missing_cli_extra_gives_install_guidance(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Fail with an install hint, not a traceback, when Cyclopts is absent."""
+    monkeypatch.setitem(sys.modules, "cyclopts", None)
+    assert main(["version"]) == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err.strip() == MISSING_EXTRA_MESSAGE
+
+
+def _noon(year: int, month: int, day: int) -> dt.datetime:
+    return dt.datetime(year, month, day, 12, tzinfo=dt.UTC)
+
+
+def _project_config(tmp_path: Path, body: str) -> Path:
+    (tmp_path / "pyproject.toml").write_text(
+        f"[tool.calver-scm]\n{body}\n", encoding="utf-8"
+    )
+    return tmp_path
+
+
+@pytest.mark.unit
+def test_validate_accepts_a_valid_version(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Print the verdict on stdout and exit 0."""
+    root = _project_config(tmp_path, 'mode = "month"')
+    assert main(["validate", "2026.4.2", "--root", str(root)]) == 0
+    assert capsys.readouterr().out == "valid: 2026.4.2\n"
+
+
+@pytest.mark.unit
+def test_validate_rejects_an_invalid_version_with_exit_1(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Print each issue on stdout and exit 1, leaving stderr empty."""
+    root = _project_config(tmp_path, 'mode = "month"')
+    assert main(["validate", "2026.13.1", "--root", str(root)]) == 1
+    captured = capsys.readouterr()
+    assert captured.out.splitlines() == [
+        "invalid: 2026.13.1",
+        "  invalid_month: Month must be between 1 and 12, got 13",
+    ]
+    assert captured.err == ""
+
+
+@pytest.mark.unit
+def test_validate_json_reports_errors_on_stdout(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Keep JSON parseable on failure and still exit 1."""
+    root = _project_config(tmp_path, 'mode = "month"')
+    assert main(["validate", "2026.13.1", "--json", "--root", str(root)]) == 1
+    assert json.loads(capsys.readouterr().out) == {
+        "valid": False,
+        "input": "2026.13.1",
+        "errors": [
+            {
+                "code": "invalid_month",
+                "message": "Month must be between 1 and 12, got 13",
+            }
+        ],
+    }
+
+
+@pytest.mark.unit
+def test_validate_tag_uses_the_configured_prefix(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Require the project's tag prefix in --tag mode."""
+    root = _project_config(tmp_path, 'tag_prefix = "release-"')
+    assert main(["validate", "release-2026.4.2", "--tag", "--root", str(root)]) == 0
+    capsys.readouterr()
+    assert main(["validate", "v2026.4.2", "--tag", "--root", str(root)]) == 1
+    assert "missing_tag_prefix" in capsys.readouterr().out
+
+
+@pytest.mark.unit
+def test_validate_without_a_pyproject_uses_defaults(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Fall back to the default scheme when the project has no configuration."""
+    assert main(["validate", "2026.4.2", "--root", str(tmp_path)]) == 0
+    assert capsys.readouterr().out == "valid: 2026.4.2\n"
+
+
+@pytest.mark.unit
+def test_validate_reports_configuration_errors_with_exit_2(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Treat an invalid project configuration as an error, not a verdict."""
+    root = _project_config(tmp_path, 'mode = "decade"')
+    assert main(["validate", "2026.4.2", "--root", str(root)]) == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err.startswith("error: Invalid config")
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("args", "expected_lines"),
+    [
+        (
+            ["--format", "plain"],
+            [
+                "invalid: 2026.13.1",
+                "  invalid_month: Month must be between 1 and 12, got 13",
+            ],
+        ),
+        (
+            ["--format", "rich"],
+            [
+                "✗ invalid 2026.13.1",
+                "invalid_month  Month must be between 1 and 12, got 13",
+            ],
+        ),
+    ],
+    ids=["plain", "rich"],
+)
+@pytest.mark.parametrize("position", ["before", "after"])
+def test_format_flag_works_before_or_after_the_command(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    args: list[str],
+    expected_lines: list[str],
+    position: str,
+) -> None:
+    """Accept the global --format option on either side of the command."""
+    command = ["validate", "2026.13.1", "--root", str(tmp_path)]
+    argv = [*args, *command] if position == "before" else [*command, *args]
+    assert main(argv) == 1
+    assert capsys.readouterr().out.splitlines() == expected_lines
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "argv",
+    [["--json", "validate", "2026.4.2"], ["validate", "2026.4.2", "--format", "json"]],
+)
+def test_json_shorthand_and_format_json_agree(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], argv: list[str]
+) -> None:
+    """Treat --json as shorthand for --format json."""
+    assert main([*argv, "--root", str(tmp_path)]) == 0
+    assert json.loads(capsys.readouterr().out) == {
+        "valid": True,
+        "input": "2026.4.2",
+        "errors": [],
+    }
+
+
+@pytest.mark.unit
+def test_rich_valid_verdict(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """Render a valid verdict with a tick."""
+    assert (
+        main(["--format", "rich", "validate", "2026.4.2", "--root", str(tmp_path)]) == 0
+    )
+    assert capsys.readouterr().out == "✓ valid 2026.4.2\n"
+
+
+@pytest.mark.e2e
+def test_rich_version(project: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """Label the version in rich output."""
+    with time_machine.travel(_noon(2026, 4, 15), tick=False):
+        assert main(["--format", "rich", "version", "--root", str(project)]) == 0
+    assert capsys.readouterr().out == "Version 2026.4.0.dev3\n"
+
+
+@pytest.mark.e2e
+def test_format_json_version_matches_json_shorthand(
+    project: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Emit the same JSON for version whichever way it is requested."""
+    with time_machine.travel(_noon(2026, 4, 15), tick=False):
+        assert main(["--format", "json", "version", "--root", str(project)]) == 0
+    assert json.loads(capsys.readouterr().out) == {"version": "2026.4.0.dev3"}
+
+
+@pytest.mark.unit
+def test_auto_format_is_rich_on_a_terminal_and_plain_otherwise(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Pick the output style from whether stdout is interactive."""
+    argv = ["validate", "2026.4.2", "--root", str(tmp_path)]
+    assert main(argv) == 0
+    assert capsys.readouterr().out == "valid: 2026.4.2\n"
+
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
+    assert main(argv) == 0
+    assert "✓ valid" in capsys.readouterr().out
+
+
+@pytest.mark.unit
+def test_unknown_format_is_a_usage_error(capsys: pytest.CaptureFixture[str]) -> None:
+    """Reject values outside auto, rich, plain and json."""
+    assert main(["--format", "yaml", "validate", "2026.4.2"]) == 2
+    assert capsys.readouterr().out == ""

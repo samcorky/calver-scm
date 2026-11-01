@@ -16,7 +16,7 @@ Thanks for your interest in improving `calver-scm`.
 3. Install development dependencies and git hooks:
 
 ```bash
-uv sync --group dev
+uv sync --group dev   # includes the `cli` group (Cyclopts)
 pre-commit install
 ```
 
@@ -47,7 +47,9 @@ reused without a repository, a clock or the filesystem.
 | [`scheme.py`](src/calver_scm/scheme.py) | The `calver_scm(version)` entry point registered with setuptools-scm. A thin adapter: finds the project root, loads the config, reads today's date and converts `ScmVersion` into an `ScmContext`. |
 | [`engine.py`](src/calver_scm/engine.py) | `resolve_version(scm, config, *, today)`: the pure algorithm. No I/O, no clock, no setuptools-scm. |
 | [`models.py`](src/calver_scm/models.py) | Frozen dataclasses: `ScmContext` (input), `VersionResolution` (output) and `ResolutionReason` (which branch ran). |
+| [`cli.py`](src/calver_scm/cli.py), [`cli_app.py`](src/calver_scm/cli_app.py), [`cli_support.py`](src/calver_scm/cli_support.py), [`cli_output.py`](src/calver_scm/cli_output.py) | The optional `calver-scm` command. `cli.py` is the console-script entry point and imports Cyclopts lazily, so it works (with an install hint) without the `cli` extra. `cli_app.py` defines the Cyclopts commands and is the only module importing Cyclopts. A meta-app launcher there parses the global `--format`/`--json` options and injects an `Output` into each command, so commands never format results themselves. `cli_output.py` holds `Output`, which renders each result as rich, plain or JSON. `cli_support.py` reproduces the build backend's setuptools-scm settings from `pyproject.toml` (setuptools and Hatch-VCS) and calls the public `get_version`. |
 | [`config.py`](src/calver_scm/config.py) | `CalverConfig`, config loading and `CALVER_SCM_*` overrides. Loading happens in the adapter, never in the engine. |
+| [`validation.py`](src/calver_scm/validation.py) | `validate_version(text, config, *, is_tag)`: pure PEP 440 and CalVer policy checks behind `calver-scm validate`. Reuses `CalverVersion`; no second parser. |
 | [`parser.py`](src/calver_scm/parser.py), [`utils.py`](src/calver_scm/utils.py), [`calver_version.py`](src/calver_scm/calver_version.py) | Tag parsing, date and formatting helpers, and the PEP 440 `CalverVersion`. |
 
 Things worth knowing when changing this code:
@@ -61,8 +63,15 @@ Things worth knowing when changing this code:
   no-tag one.
 - A parseable tag without usable release components falls back even when it is
   exact and clean. Dirty at distance 0 takes the dev path.
-- Do not import `setuptools_scm` outside `scheme.py` (and then only under
-  `TYPE_CHECKING`). `tests/test_import_boundary.py` enforces this.
+- Do not import `setuptools_scm` in the engine, models or parser. `scheme.py` may
+  import it only under `TYPE_CHECKING`; only `cli_support.py` calls it at runtime.
+  `tests/test_import_boundary.py` enforces this.
+- Do not import Cyclopts outside `cli_app.py` and the lazy import in `cli.py`.
+- New commands take an injected `output: OutputParameter` and add a rendering
+  method to `Output` covering rich, plain and JSON; do not `print` results directly.
+  Errors go to stderr as plain text.
+- `tests/test_cli_parity.py` compares `calver-scm version` with what real setuptools
+  and Hatchling builds report. Keep it passing when changing `cli_support.py`.
 
 ## Coding guidelines
 
