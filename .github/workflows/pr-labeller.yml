@@ -1,4 +1,4 @@
-name: PR Labeler
+name: PR Labeller
 
 on:
   pull_request_target:
@@ -20,3 +20,4 @@ jobs:
         uses: actions/labeler@v7.0.0
         with:
           sync-labels: true
+          configuration-path: .github/labeller.yml

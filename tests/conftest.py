@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import datetime as dt
+import re
+import subprocess
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
 
 import pytest
+import time_machine
 
 # noinspection PyProtectedMember
 from calver_scm.config import _load_calver_config
@@ -95,3 +99,83 @@ def write_pyproject(tmp_path: Path) -> Callable[[str], Path]:
         return tmp_path
 
     return _write
+
+
+@pytest.fixture
+def set_today() -> Generator[Callable[[dt.date], None]]:
+    """Freeze the clock at noon UTC on the given date for the rest of the test."""
+    travellers: list[time_machine.travel] = []
+
+    def _set(today: dt.date) -> None:
+        traveller = time_machine.travel(
+            dt.datetime.combine(today, dt.time(12), tzinfo=dt.UTC), tick=False
+        )
+        traveller.start()
+        travellers.append(traveller)
+
+    yield _set
+    for traveller in travellers:
+        traveller.stop()
+
+
+@pytest.fixture
+def make_git_project(tmp_path: Path) -> Callable[..., Path]:
+    """Create a Git repository containing a project and return the project dir."""
+
+    def _git(cwd: Path, *args: str) -> None:
+        subprocess.run(
+            [
+                "git",
+                "-c",
+                "user.name=test",
+                "-c",
+                "user.email=test@example.com",
+                "-c",
+                "commit.gpgsign=false",
+                "-c",
+                "tag.gpgsign=false",
+                *args,
+            ],
+            cwd=cwd,
+            check=True,
+            capture_output=True,
+        )
+
+    def _make(
+        pyproject: str,
+        *,
+        tag: str | None = None,
+        commits_after_tag: int = 0,
+        dirty: bool = False,
+        subdir: str | None = None,
+    ) -> Path:
+        repo = tmp_path / "repo"
+        project = repo / subdir if subdir else repo
+        project.mkdir(parents=True)
+        (project / "pyproject.toml").write_text(pyproject, encoding="utf-8")
+        _git(repo, "init", "-q")
+        _git(repo, "add", ".")
+        _git(repo, "commit", "-q", "-m", "initial")
+        if tag is not None:
+            _git(repo, "tag", tag)
+        for i in range(commits_after_tag):
+            (project / f"change{i}.txt").write_text(str(i), encoding="utf-8")
+            _git(repo, "add", ".")
+            _git(repo, "commit", "-q", "-m", f"change {i}")
+        if dirty:
+            (project / "pyproject.toml").write_text(
+                pyproject + "\n# dirty\n", encoding="utf-8"
+            )
+        return project
+
+    return _make
+
+
+@pytest.fixture
+def flat() -> Callable[[str], str]:
+    """Collapse rich box drawing and wrapping so fragments can be matched."""
+
+    def _flat(text: str) -> str:
+        return " ".join(re.sub(r"[│╭╮╰╯─┬┴┼├┤]", " ", text).split())
+
+    return _flat

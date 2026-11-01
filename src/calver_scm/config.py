@@ -84,7 +84,7 @@ class CalverConfig:
     timezone: str = "UTC"
 
     def __post_init__(self) -> None:
-        """Validate field values after dataclass initialization."""
+        """Validate field values after dataclass initialisation."""
         object.__setattr__(self, "mode", CalverMode.from_raw(self.mode))
         object.__setattr__(self, "fallback", FallbackMode.from_raw(self.fallback))
         if self.scheme is not None:

@@ -1,0 +1,12 @@
+[default]
+locale = "en-gb"
+extend-ignore-re = [
+    'align="center"', # HTML attribute in the README header
+    '(?m)^\s*behavior:.*$', # codecov.yml configuration key
+]
+
+[default.extend-identifiers]
+NO_COLOR = "NO_COLOR" # environment variable name
+
+[default.extend-words]
+synchronize = "synchronize" # GitHub pull_request activity type, not prose

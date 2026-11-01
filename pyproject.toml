@@ -106,12 +106,19 @@ version_scheme = "no-guess-dev"
 local_scheme = "node-and-timestamp"
 
 [dependency-groups]
+cli = [
+    "cyclopts>=5.3.2",
+]
 dev = [
+    { include-group = "cli" },
+    "hatch-vcs>=0.5.0",
+    "hatchling>=1.33.0",
     "mypy>=1.20.0",
     "pre-commit>=4.5.1",
     "pytest>=9.0.2",
     "pytest-cov>=7.0.0",
     "ruff>=0.15.9",
+    "time-machine>=3.6.0",
 ]
 
 [tool.pytest.ini_options]
@@ -217,3 +224,11 @@ namespace_packages = true
 
 [project.entry-points."setuptools_scm.version_scheme"]
 calver-scm = "calver_scm:calver_scm"
+
+[project.scripts]
+calver-scm = "calver_scm.cli:main"
+
+[project.optional-dependencies]
+cli = [
+    "cyclopts>=5.3.2",
+]
