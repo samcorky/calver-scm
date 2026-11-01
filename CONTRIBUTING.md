@@ -37,6 +37,33 @@ uv run ruff format
 uv run ruff check
 ```
 
+## Architecture
+
+Version calculation is separated from setuptools-scm so it can be tested and
+reused without a repository, a clock or the filesystem.
+
+| Module | Role |
+| --- | --- |
+| [`scheme.py`](src/calver_scm/scheme.py) | The `calver_scm(version)` entry point registered with setuptools-scm. A thin adapter: finds the project root, loads the config, reads today's date and converts `ScmVersion` into an `ScmContext`. |
+| [`engine.py`](src/calver_scm/engine.py) | `resolve_version(scm, config, *, today)`: the pure algorithm. No I/O, no clock, no setuptools-scm. |
+| [`models.py`](src/calver_scm/models.py) | Frozen dataclasses: `ScmContext` (input), `VersionResolution` (output) and `ResolutionReason` (which branch ran). |
+| [`config.py`](src/calver_scm/config.py) | `CalverConfig`, config loading and `CALVER_SCM_*` overrides. Loading happens in the adapter, never in the engine. |
+| [`parser.py`](src/calver_scm/parser.py), [`utils.py`](src/calver_scm/utils.py), [`calver_version.py`](src/calver_scm/calver_version.py) | Tag parsing, date and formatting helpers, and the PEP 440 `CalverVersion`. |
+
+Things worth knowing when changing this code:
+
+- `VersionResolution.public_version` is the version scheme output only.
+  setuptools-scm applies the `local_scheme` afterwards, so the final build
+  version can carry a suffix such as `+g1a2b3c4.d20260415`.
+- With setuptools-scm 10, `ScmVersion.distance` is always an `int` and `tag` is
+  already prefix-stripped and normalized. A repository with no tags reaches the
+  scheme as tag `0.0`, so it takes the incompatible-tag fallback rather than the
+  no-tag one.
+- A parseable tag without usable release components falls back even when it is
+  exact and clean. Dirty at distance 0 takes the dev path.
+- Do not import `setuptools_scm` outside `scheme.py` (and then only under
+  `TYPE_CHECKING`). `tests/test_import_boundary.py` enforces this.
+
 ## Coding guidelines
 
 - Target Python 3.11+.
@@ -49,6 +76,12 @@ uv run ruff check
 
 - Place tests in [`tests/`](tests/).
 - Keep unit tests fast and deterministic.
+- Test the engine directly with `ScmContext`, `CalverConfig` and a fixed `today`;
+  no patching is needed.
+- For adapter and end-to-end tests, freeze the clock with the `set_today`
+  fixture (backed by `time-machine`) instead of monkeypatching.
+- [`tests/test_scheme_characterization.py`](tests/test_scheme_characterization.py)
+  is a golden table of every decision branch. If it changes, output changed.
 - Add end-to-end coverage for version parsing/scheme behaviour changes.
 - Do not reduce coverage.
 

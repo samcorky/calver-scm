@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import datetime as dt
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
 
 import pytest
+import time_machine
 
 # noinspection PyProtectedMember
 from calver_scm.config import _load_calver_config
@@ -95,3 +97,20 @@ def write_pyproject(tmp_path: Path) -> Callable[[str], Path]:
         return tmp_path
 
     return _write
+
+
+@pytest.fixture
+def set_today() -> Generator[Callable[[dt.date], None]]:
+    """Freeze the clock at noon UTC on the given date for the rest of the test."""
+    travellers: list[time_machine.travel] = []
+
+    def _set(today: dt.date) -> None:
+        traveller = time_machine.travel(
+            dt.datetime.combine(today, dt.time(12), tzinfo=dt.UTC), tick=False
+        )
+        traveller.start()
+        travellers.append(traveller)
+
+    yield _set
+    for traveller in travellers:
+        traveller.stop()

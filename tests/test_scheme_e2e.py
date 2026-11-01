@@ -6,6 +6,7 @@ from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
 
 import pytest
+import time_machine
 
 from calver_scm.config import CalverConfig, CalverMode, _load_calver_config
 from calver_scm.scheme import calver_scm
@@ -35,7 +36,7 @@ pytestmark = pytest.mark.e2e
 def test_calver_scm_month_mode_flows(
     write_pyproject: Callable[[str], Path],
     make_scm_version: Callable[..., Any],
-    monkeypatch: pytest.MonkeyPatch,
+    set_today: Callable[[dt.date], None],
     tag: str,
     distance: int,
     dirty: bool,
@@ -44,7 +45,7 @@ def test_calver_scm_month_mode_flows(
 ) -> None:
     """Generate month-mode versions for clean tags, dev builds, and rollover."""
     root = write_pyproject('mode = "month"')
-    monkeypatch.setattr("calver_scm.scheme._today_in_timezone", lambda _tz: today)
+    set_today(today)
     version = make_scm_version(root=root, tag=tag, distance=distance, dirty=dirty)
     assert calver_scm(version) == expected
 
@@ -52,14 +53,11 @@ def test_calver_scm_month_mode_flows(
 def test_calver_scm_respects_patch_false(
     write_pyproject: Callable[[str], Path],
     make_scm_version: Callable[..., Any],
-    monkeypatch: pytest.MonkeyPatch,
+    set_today: Callable[[dt.date], None],
 ) -> None:
     """Keep patch at zero for dev builds when patch auto-increment is disabled."""
     root = write_pyproject("\n".join(['mode = "month"', "patch = false"]))
-    monkeypatch.setattr(
-        "calver_scm.scheme._today_in_timezone",
-        lambda _tz: dt.date(2026, 4, 15),
-    )
+    set_today(dt.date(2026, 4, 15))
     version = make_scm_version(root=root, tag="v2026.04.2", distance=3)
     assert calver_scm(version) == "2026.4.0.dev3"
 
@@ -88,7 +86,7 @@ def test_calver_scm_respects_patch_false(
 def test_calver_scm_patch_and_no_dev_combinations(
     write_pyproject: Callable[[str], Path],
     make_scm_version: Callable[..., Any],
-    monkeypatch: pytest.MonkeyPatch,
+    set_today: Callable[[dt.date], None],
     patch: bool,
     no_dev: bool,
     tag: str | None,
@@ -102,7 +100,7 @@ def test_calver_scm_patch_and_no_dev_combinations(
     root = write_pyproject(
         "\n".join(['mode = "month"', f"patch = {patch_str}", f"no_dev = {no_dev_str}"])
     )
-    monkeypatch.setattr("calver_scm.scheme._today_in_timezone", lambda _tz: today)
+    set_today(today)
     version = make_scm_version(root=root, tag=tag, distance=distance)
     assert calver_scm(version) == expected
 
@@ -118,7 +116,7 @@ def test_calver_scm_patch_and_no_dev_combinations(
 def test_calver_scm_respects_no_dev(
     write_pyproject: Callable[[str], Path],
     make_scm_version: Callable[..., Any],
-    monkeypatch: pytest.MonkeyPatch,
+    set_today: Callable[[dt.date], None],
     tag: str,
     distance: int,
     dirty: bool,
@@ -127,7 +125,7 @@ def test_calver_scm_respects_no_dev(
 ) -> None:
     """Suppress dev suffix on non-exact versions when no_dev is enabled."""
     root = write_pyproject("\n".join(['mode = "month"', "no_dev = true"]))
-    monkeypatch.setattr("calver_scm.scheme._today_in_timezone", lambda _tz: today)
+    set_today(today)
     version = make_scm_version(root=root, tag=tag, distance=distance, dirty=dirty)
     assert calver_scm(version) == expected
 
@@ -136,14 +134,12 @@ def test_calver_scm_respects_no_dev_env_override(
     write_pyproject: Callable[[str], Path],
     make_scm_version: Callable[..., Any],
     monkeypatch: pytest.MonkeyPatch,
+    set_today: Callable[[dt.date], None],
 ) -> None:
     """Suppress dev suffix when CALVER_SCM_NO_DEV environment variable is set."""
     root = write_pyproject('mode = "month"')
     monkeypatch.setenv("CALVER_SCM_NO_DEV", "true")
-    monkeypatch.setattr(
-        "calver_scm.scheme._today_in_timezone",
-        lambda _tz: dt.date(2026, 4, 15),
-    )
+    set_today(dt.date(2026, 4, 15))
     version = make_scm_version(root=root, tag="v2026.04.2", distance=3)
     assert calver_scm(version) == "2026.4.3"
 
@@ -151,14 +147,11 @@ def test_calver_scm_respects_no_dev_env_override(
 def test_calver_scm_fallback_when_no_tag_in_no_dev_mode(
     write_pyproject: Callable[[str], Path],
     make_scm_version: Callable[..., Any],
-    monkeypatch: pytest.MonkeyPatch,
+    set_today: Callable[[dt.date], None],
 ) -> None:
     """Emit clean fallback version without dev suffix when no_dev is enabled."""
     root = write_pyproject("\n".join(['mode = "month"', "no_dev = true"]))
-    monkeypatch.setattr(
-        "calver_scm.scheme._today_in_timezone",
-        lambda _tz: dt.date(2026, 4, 15),
-    )
+    set_today(dt.date(2026, 4, 15))
     version = make_scm_version(root=root, tag=None, distance=12)
     assert calver_scm(version) == "2026.4.0"
 
@@ -166,16 +159,13 @@ def test_calver_scm_fallback_when_no_tag_in_no_dev_mode(
 def test_calver_scm_respects_no_dev_with_unstable_mode(
     write_pyproject: Callable[[str], Path],
     make_scm_version: Callable[..., Any],
-    monkeypatch: pytest.MonkeyPatch,
+    set_today: Callable[[dt.date], None],
 ) -> None:
     """Apply unstable prefix and suppress dev suffix for unstable no_dev builds."""
     root = write_pyproject(
         "\n".join(['mode = "month"', "stable = false", "no_dev = true"])
     )
-    monkeypatch.setattr(
-        "calver_scm.scheme._today_in_timezone",
-        lambda _tz: dt.date(2026, 4, 15),
-    )
+    set_today(dt.date(2026, 4, 15))
     version = make_scm_version(root=root, tag="v2026.04.2", distance=3)
     assert calver_scm(version) == "0.2026.4.3"
 
@@ -195,7 +185,7 @@ def test_calver_scm_respects_no_dev_with_unstable_mode(
 def test_calver_scm_prepends_zero_prefix_when_stable_false(
     write_pyproject: Callable[[str], Path],
     make_scm_version: Callable[..., Any],
-    monkeypatch: pytest.MonkeyPatch,
+    set_today: Callable[[dt.date], None],
     tag: str,
     distance: int,
     dirty: bool,
@@ -203,10 +193,7 @@ def test_calver_scm_prepends_zero_prefix_when_stable_false(
 ) -> None:
     """Prefix all generated outputs with `0.` when project stability is disabled."""
     root = write_pyproject("\n".join(['mode = "month"', "stable = false"]))
-    monkeypatch.setattr(
-        "calver_scm.scheme._today_in_timezone",
-        lambda _tz: dt.date(2026, 4, 15),
-    )
+    set_today(dt.date(2026, 4, 15))
     version = make_scm_version(root=root, tag=tag, distance=distance, dirty=dirty)
     assert calver_scm(version) == expected
 
@@ -214,14 +201,11 @@ def test_calver_scm_prepends_zero_prefix_when_stable_false(
 def test_calver_scm_fallback_when_no_tag_in_dev_mode(
     write_pyproject: Callable[[str], Path],
     make_scm_version: Callable[..., Any],
-    monkeypatch: pytest.MonkeyPatch,
+    set_today: Callable[[dt.date], None],
 ) -> None:
     """Emit dev fallback when repository has no compatible tag yet."""
     root = write_pyproject("\n".join(['mode = "month"', 'fallback = "dev"']))
-    monkeypatch.setattr(
-        "calver_scm.scheme._today_in_timezone",
-        lambda _tz: dt.date(2026, 4, 15),
-    )
+    set_today(dt.date(2026, 4, 15))
     version = make_scm_version(root=root, tag=None, distance=12)
     assert calver_scm(version) == "2026.4.0.dev12"
 
@@ -229,14 +213,11 @@ def test_calver_scm_fallback_when_no_tag_in_dev_mode(
 def test_calver_scm_fallback_when_no_tag_in_date_mode(
     write_pyproject: Callable[[str], Path],
     make_scm_version: Callable[..., Any],
-    monkeypatch: pytest.MonkeyPatch,
+    set_today: Callable[[dt.date], None],
 ) -> None:
     """Emit date-only fallback when configured fallback mode is date."""
     root = write_pyproject("\n".join(['mode = "month"', 'fallback = "date"']))
-    monkeypatch.setattr(
-        "calver_scm.scheme._today_in_timezone",
-        lambda _tz: dt.date(2026, 4, 15),
-    )
+    set_today(dt.date(2026, 4, 15))
     version = make_scm_version(root=root, tag=None, distance=12)
     assert calver_scm(version) == "2026.4.0"
 
@@ -251,7 +232,7 @@ def test_calver_scm_fallback_when_no_tag_in_date_mode(
 def test_calver_scm_prepends_zero_prefix_for_unstable_fallback_modes(
     write_pyproject: Callable[[str], Path],
     make_scm_version: Callable[..., Any],
-    monkeypatch: pytest.MonkeyPatch,
+    set_today: Callable[[dt.date], None],
     fallback: str,
     expected: str,
 ) -> None:
@@ -259,10 +240,7 @@ def test_calver_scm_prepends_zero_prefix_for_unstable_fallback_modes(
     root = write_pyproject(
         "\n".join(['mode = "month"', "stable = false", f'fallback = "{fallback}"'])
     )
-    monkeypatch.setattr(
-        "calver_scm.scheme._today_in_timezone",
-        lambda _tz: dt.date(2026, 4, 15),
-    )
+    set_today(dt.date(2026, 4, 15))
     version = make_scm_version(root=root, tag=None, distance=12)
     assert calver_scm(version) == expected
 
@@ -270,14 +248,11 @@ def test_calver_scm_prepends_zero_prefix_for_unstable_fallback_modes(
 def test_calver_scm_fallback_for_unparsable_or_incompatible_tag(
     write_pyproject: Callable[[str], Path],
     make_scm_version: Callable[..., Any],
-    monkeypatch: pytest.MonkeyPatch,
+    set_today: Callable[[dt.date], None],
 ) -> None:
     """Fall back when tags are invalid or do not match configured date arity."""
     root = write_pyproject('mode = "day"')
-    monkeypatch.setattr(
-        "calver_scm.scheme._today_in_timezone",
-        lambda _tz: dt.date(2026, 4, 15),
-    )
+    set_today(dt.date(2026, 4, 15))
 
     invalid_tag = make_scm_version(root=root, tag="vnot-a-version", distance=4)
     incompatible_tag = make_scm_version(root=root, tag="v2026.04", distance=4)
@@ -289,14 +264,11 @@ def test_calver_scm_fallback_for_unparsable_or_incompatible_tag(
 def test_calver_scm_honors_custom_tag_prefix(
     write_pyproject: Callable[[str], Path],
     make_scm_version: Callable[..., Any],
-    monkeypatch: pytest.MonkeyPatch,
+    set_today: Callable[[dt.date], None],
 ) -> None:
     """Parse tags using configured custom prefixes."""
     root = write_pyproject("\n".join(['mode = "month"', 'tag_prefix = "release-"']))
-    monkeypatch.setattr(
-        "calver_scm.scheme._today_in_timezone",
-        lambda _tz: dt.date(2026, 4, 15),
-    )
+    set_today(dt.date(2026, 4, 15))
     version = make_scm_version(root=root, tag="release-2026.04.2", distance=0)
     assert calver_scm(version) == "2026.4.2"
 
@@ -304,14 +276,11 @@ def test_calver_scm_honors_custom_tag_prefix(
 def test_clean_checkout_preserves_local_tag_segment(
     write_pyproject: Callable[[str], Path],
     make_scm_version: Callable[..., Any],
-    monkeypatch: pytest.MonkeyPatch,
+    set_today: Callable[[dt.date], None],
 ) -> None:
     """Preserve tag local metadata on clean checkouts, including normalisation."""
     root = write_pyproject('mode = "month"')
-    monkeypatch.setattr(
-        "calver_scm.scheme._today_in_timezone",
-        lambda _tz: dt.date(2026, 4, 15),
-    )
+    set_today(dt.date(2026, 4, 15))
     version = make_scm_version(
         root=root,
         tag="v2026.04.2+linux.x86_64",
@@ -340,7 +309,7 @@ def test_clean_checkout_preserves_local_tag_segment(
 def test_old_formatted_tag_in_history_rolls_forward_to_calver_dev_version(
     write_pyproject: Callable[[str], Path],
     make_scm_version: Callable[..., Any],
-    monkeypatch: pytest.MonkeyPatch,
+    set_today: Callable[[dt.date], None],
     tag: str,
     distance: int,
     dirty: bool,
@@ -349,7 +318,7 @@ def test_old_formatted_tag_in_history_rolls_forward_to_calver_dev_version(
 ) -> None:
     """Roll forward to CalVer dev version when latest history tag is older format."""
     root = write_pyproject('mode = "month"')
-    monkeypatch.setattr("calver_scm.scheme._today_in_timezone", lambda _tz: today)
+    set_today(today)
     version = make_scm_version(root=root, tag=tag, distance=distance, dirty=dirty)
     assert calver_scm(version) == expected
 
@@ -366,22 +335,20 @@ def test_old_formatted_tag_in_history_rolls_forward_to_calver_dev_version(
 def test_clean_checkout_on_old_formatted_tag_preserves_normalized_release(
     write_pyproject: Callable[[str], Path],
     make_scm_version: Callable[..., Any],
-    monkeypatch: pytest.MonkeyPatch,
+    set_today: Callable[[dt.date], None],
     tag: str,
     expected: str,
 ) -> None:
     """Document clean-tag behaviour when the discovered tag uses an older format."""
     root = write_pyproject('mode = "month"')
-    monkeypatch.setattr(
-        "calver_scm.scheme._today_in_timezone",
-        lambda _tz: dt.date(2026, 4, 15),
-    )
+    set_today(dt.date(2026, 4, 15))
     version = make_scm_version(root=root, tag=tag, distance=0, dirty=False)
     assert calver_scm(version) == expected
 
 
 def test_calver_scm_uses_project_root_from_absolute_root_and_project_path(
     monkeypatch: pytest.MonkeyPatch,
+    set_today: Callable[[dt.date], None],
     tmp_path: Path,
 ) -> None:
     """Use the package-local config when setuptools-scm uses the shared root."""
@@ -407,9 +374,7 @@ def test_calver_scm_uses_project_root_from_absolute_root_and_project_path(
         return _load_calver_config(root)
 
     monkeypatch.setattr("calver_scm.scheme._load_calver_config", fake_load)
-    monkeypatch.setattr(
-        "calver_scm.scheme._today_in_timezone", lambda _tz: dt.date(2026, 4, 15)
-    )
+    set_today(dt.date(2026, 4, 15))
 
     version: Any = SimpleNamespace(
         config=SimpleNamespace(
@@ -427,6 +392,7 @@ def test_calver_scm_uses_project_root_from_absolute_root_and_project_path(
 
 def test_calver_scm_uses_current_directory_when_root_missing(
     monkeypatch: pytest.MonkeyPatch,
+    set_today: Callable[[dt.date], None],
 ) -> None:
     """Resolve config root from the current directory when version root is absent."""
     captured: dict[str, Path] = {}
@@ -436,12 +402,30 @@ def test_calver_scm_uses_current_directory_when_root_missing(
         return CalverConfig(mode=CalverMode.MONTH)
 
     monkeypatch.setattr("calver_scm.scheme._load_calver_config", fake_load)
-    monkeypatch.setattr(
-        "calver_scm.scheme._today_in_timezone", lambda _tz: dt.date(2026, 4, 15)
-    )
+    set_today(dt.date(2026, 4, 15))
 
     version: Any = SimpleNamespace(
         config=SimpleNamespace(), tag=None, distance=2, dirty=False
     )
     assert calver_scm(version) == "2026.4.0.dev2"
     assert captured["root"] == Path(".").resolve()
+
+
+@pytest.mark.parametrize(
+    ("timezone", "expected"),
+    [
+        ("UTC", "2026.4.3.dev3"),
+        ("Pacific/Auckland", "2026.5.0.dev3"),
+    ],
+)
+def test_calver_scm_uses_configured_timezone_for_period_rollover(
+    write_pyproject: Callable[[str], Path],
+    make_scm_version: Callable[..., Any],
+    timezone: str,
+    expected: str,
+) -> None:
+    """Roll into May only where it is already May at the frozen instant."""
+    root = write_pyproject(f'mode = "month"\ntimezone = "{timezone}"')
+    with time_machine.travel(dt.datetime(2026, 4, 30, 23, 30, tzinfo=dt.UTC)):
+        version = make_scm_version(root=root, tag="v2026.04.2", distance=3)
+        assert calver_scm(version) == expected
