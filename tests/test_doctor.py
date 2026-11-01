@@ -183,7 +183,9 @@ def test_report_status_is_the_most_serious_severity(
 
 @pytest.mark.e2e
 def test_plain_and_rich_reports(
-    make_git_project: Callable[..., Path], capsys: pytest.CaptureFixture[str]
+    make_git_project: Callable[..., Path],
+    capsys: pytest.CaptureFixture[str],
+    flat: Callable[[str], str],
 ) -> None:
     """Render summaries, details and fixes in both human formats."""
     project = make_git_project(SETUPTOOLS.format(local_scheme="no-local-version"))
@@ -197,8 +199,10 @@ def test_plain_and_rich_reports(
     assert plain[-1] == "status: warning"
 
     assert main(["--format", "rich", "doctor", "--root", str(project)]) == 0
-    rich = capsys.readouterr().out
-    assert "✓ The build uses the calver-scm version scheme" in rich
-    assert "! No tag fits the configured CalVer scheme" in rich
-    assert "    fix: Tag a release" in rich
-    assert rich.rstrip().endswith("Status warning")
+    rich = flat(capsys.readouterr().out)
+    assert "build_config" in rich
+    assert "The build uses the calver-scm version scheme" in rich
+    assert "no_compatible_tag" in rich
+    assert "→ Tag a release" in rich
+    assert "status: warning" in rich
+    assert "1 warning" in rich

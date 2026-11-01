@@ -507,6 +507,16 @@ calver-scm explain
 
 Shows how the build version was derived: the tag, commit distance and dirty flag that setuptools-scm supplied, the date and timezone used, which branch of the algorithm ran (`exact_tag`, `patch_incremented`, `patch_reset`, `no_tag_fallback` or `incompatible_tag_fallback`), the effective configuration, and any `CALVER_SCM_*` overrides in force. It separates the `public_version` that calver-scm produced from the `local_segment` that your `local_scheme` appended afterwards. It runs the same code path as a real build, and it never prints absolute paths.
 
+The `reason` is one of:
+
+| Reason | Meaning |
+| --- | --- |
+| `no_tag_fallback` | **No tag, fallback.** There is no tag at all, so the configured fallback applies. |
+| `incompatible_tag_fallback` | **Incompatible tag, fallback.** The tag does not fit the CalVer scheme (a repository with no tags is reported as 0.0), so the configured fallback applies. |
+| `exact_tag` | **Exact tag.** HEAD is exactly on a clean tag, so that tag's version is used as it is. |
+| `patch_incremented` | **Patch incremented.** There are commits since a tag from the current period, so the patch moves on by one. |
+| `patch_reset` | **Patch reset.** The tag is from an earlier period (or patch is turned off), so the patch starts again at 0. |
+
 ### Diagnosing problems
 
 ```bash
@@ -522,6 +532,28 @@ git tag "$(calver-scm next-tag)"     # prints e.g. v2026.4.3
 ```
 
 `next-tag` is read-only: it proposes a tag and never creates or pushes one. It looks at every local tag, not only those reachable from HEAD, so a number used on another branch is not reused. Pre-releases and dev releases occupy no number, post-releases do, and tags that do not fit the scheme are ignored. It honours `tag_prefix`, `stable` and the timezone. With `patch = false` it refuses a second release in the same period. It also refuses a shallow clone, because the tag list cannot be trusted. Tags that exist only on the remote and have not been fetched cannot be seen, so run `git fetch --tags` first.
+
+The `reason` is one of:
+
+| Reason | Meaning |
+| --- | --- |
+| `new_period` | **New period.** No release exists in this period yet, so numbering starts at 0. |
+| `next_patch` | **Next patch.** A release already exists in this period, so the patch moves on from it. |
+
+#### How `next-tag` differs from `version`
+
+`calver-scm version` describes the commit you are on; `next-tag` plans a release. They agree in a simple, linear history, so `CALVER_SCM_NO_DEV=true calver-scm version` and `calver-scm next-tag` give the same number there. They are not the same thing:
+
+| Situation | `version` (with `no_dev`) | `next-tag` |
+| --- | --- | --- |
+| Commits past the latest release, linear history | the next patch, e.g. `2026.11.1` | `v2026.11.1`, the same number |
+| HEAD is exactly on a release tag | that tag, `2026.11.0` | the next number, `v2026.11.1` |
+| The nearest tag is a pre-release (`rc1`) | moves on from the pre-release's number | ignores pre-releases |
+| A later tag exists only on another branch | ignores it (not reachable from HEAD) | counts it, so it never reuses a number |
+| Uncommitted changes | adds a local segment such as `+g1a2b3c4.d20261101` | unaffected |
+| `patch = false` | always patch `0`, which can repeat a release | refuses a second release in the period |
+
+Use `version` to see what a build will be called, and `next-tag` to decide what to tag.
 
 ### Output formats
 
@@ -543,6 +575,10 @@ calver-scm --format json version
 Piping or redirecting therefore always gives plain text without needing a flag. Errors are always plain text on stderr, whatever the format.
 
 The verdict, valid or not, goes to stdout so `--json` stays parseable. Errors go to stderr. Exit codes: `0` success or valid, `1` invalid input or `doctor` found errors, `2` invalid usage, bad configuration, or the version could not be resolved, `3` `next-tag` cannot propose a safe tag. `calver-scm --version` prints the installed `calver-scm` release.
+
+Run `calver-scm --help`, or `calver-scm COMMAND --help`, for the options, worked examples and exit codes of each command.
+
+If `[tool.calver-scm]`, a `CALVER_SCM_*` variable or `pyproject.toml` itself is invalid, every command stops with `error: Invalid config: …` on stderr and exit code 2. `doctor` is the exception: it reports the problem as an error check, carries on with the other checks, and exits 1. The build behaves the same way in spirit: setuptools-scm raises a `RuntimeError` with the same message, so the build fails instead of producing a wrong version.
 
 Without the `cli` extra the `calver-scm` command still exists but only prints how to install it.
 

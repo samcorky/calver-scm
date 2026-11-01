@@ -20,6 +20,28 @@ class NextTagReason(StrEnum):
     NEW_PERIOD = "new_period"
     NEXT_PATCH = "next_patch"
 
+    @property
+    def label(self) -> str:
+        """A short human-readable name for the reason."""
+        return _NEXT_TAG_TEXT[self][0]
+
+    @property
+    def description(self) -> str:
+        """One sentence explaining why the tag has this patch."""
+        return _NEXT_TAG_TEXT[self][1]
+
+
+_NEXT_TAG_TEXT: dict[NextTagReason, tuple[str, str]] = {
+    NextTagReason.NEW_PERIOD: (
+        "New period",
+        "No release exists in this period yet, so numbering starts at 0.",
+    ),
+    NextTagReason.NEXT_PATCH: (
+        "Next patch",
+        "A release already exists in this period, so the patch moves on from it.",
+    ),
+}
+
 
 class NextTagError(Exception):
     """Raised when no safe next release tag can be proposed."""

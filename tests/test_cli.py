@@ -3,16 +3,18 @@ from __future__ import annotations
 import datetime as dt
 import json
 import sys
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
 import time_machine
 
 from calver_scm.cli import MISSING_EXTRA_MESSAGE, main
+from calver_scm.models import ResolutionReason
+from calver_scm.release import NextTagReason
 
 if TYPE_CHECKING:
     from collections.abc import Callable
-    from pathlib import Path
 
 SETUPTOOLS = """
 [project]
@@ -192,7 +194,7 @@ def test_validate_reports_configuration_errors_with_exit_2(
 
 @pytest.mark.unit
 @pytest.mark.parametrize(
-    ("args", "expected_lines"),
+    ("args", "fragments"),
     [
         (
             ["--format", "plain"],
@@ -204,8 +206,10 @@ def test_validate_reports_configuration_errors_with_exit_2(
         (
             ["--format", "rich"],
             [
-                "✗ invalid 2026.13.1",
-                "invalid_month  Month must be between 1 and 12, got 13",
+                "invalid",
+                "✗ 2026.13.1",
+                "invalid_month",
+                "Month must be between 1 and 12, got 13",
             ],
         ),
     ],
@@ -216,14 +220,15 @@ def test_format_flag_works_before_or_after_the_command(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
     args: list[str],
-    expected_lines: list[str],
+    fragments: list[str],
     position: str,
 ) -> None:
     """Accept the global --format option on either side of the command."""
     command = ["validate", "2026.13.1", "--root", str(tmp_path)]
     argv = [*args, *command] if position == "before" else [*command, *args]
     assert main(argv) == 1
-    assert capsys.readouterr().out.splitlines() == expected_lines
+    out = capsys.readouterr().out
+    assert all(fragment in out for fragment in fragments)
 
 
 @pytest.mark.unit
@@ -249,15 +254,19 @@ def test_rich_valid_verdict(tmp_path: Path, capsys: pytest.CaptureFixture[str]) 
     assert (
         main(["--format", "rich", "validate", "2026.4.2", "--root", str(tmp_path)]) == 0
     )
-    assert capsys.readouterr().out == "✓ valid 2026.4.2\n"
+    out = capsys.readouterr().out
+    assert "✓ 2026.4.2" in out
+    assert "is valid" in out
 
 
 @pytest.mark.e2e
 def test_rich_version(project: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    """Label the version in rich output."""
+    """Show the version in a titled panel in rich output."""
     with time_machine.travel(_noon(2026, 4, 15), tick=False):
         assert main(["--format", "rich", "version", "--root", str(project)]) == 0
-    assert capsys.readouterr().out == "Version 2026.4.0.dev3\n"
+    out = capsys.readouterr().out
+    assert "version" in out
+    assert "2026.4.0.dev3" in out
 
 
 @pytest.mark.e2e
@@ -283,7 +292,7 @@ def test_auto_format_is_rich_on_a_terminal_and_plain_otherwise(
 
     monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
     assert main(argv) == 0
-    assert "✓ valid" in capsys.readouterr().out
+    assert "is valid" in capsys.readouterr().out
 
 
 @pytest.mark.unit
@@ -384,16 +393,26 @@ def test_explain_a_repository_without_tags_uses_the_fallback(
 
 @pytest.mark.e2e
 def test_explain_rich_output_has_labelled_sections(
-    project: Path, capsys: pytest.CaptureFixture[str]
+    project: Path,
+    capsys: pytest.CaptureFixture[str],
+    flat: Callable[[str], str],
 ) -> None:
     """Group the facts under headings and summarise the decision in words."""
     with time_machine.travel(_noon(2026, 4, 15), tick=False):
         assert main(["--format", "rich", "explain", "--root", str(project)]) == 0
-    out = capsys.readouterr().out
-    assert out.startswith("Version 2026.4.0.dev3\n")
-    for heading in ("Scm", "Calculation", "Config", "Env Overrides", "(none)"):
-        assert heading in out
-    assert "so the patch is 0." in out
+    out = flat(capsys.readouterr().out)
+    for fragment in (
+        "calver-scm explain",
+        "Version 2026.4.0.dev3",
+        "Patch reset",
+        "so the patch starts again at 0.",
+        "2020.1.4 +3 commits → patch reset → 2026.4.0.dev3",
+        "SCM",
+        "Calculation",
+        "Configuration",
+        "No CALVER_SCM_* overrides are set.",
+    ):
+        assert fragment in out
 
 
 @pytest.mark.e2e
@@ -433,3 +452,70 @@ def test_invalid_calver_configuration_is_a_clean_error(
     captured = capsys.readouterr()
     assert captured.out == ""
     assert captured.err == "error: Invalid config: Invalid mode: 'decade'\n"
+
+
+@pytest.mark.unit
+def test_root_help_lists_every_command_with_examples_and_exit_codes(
+    capsys: pytest.CaptureFixture[str], flat: Callable[[str], str]
+) -> None:
+    """Make the top-level help enough to get started without the README."""
+    assert main(["--help"]) == 0
+    out = flat(capsys.readouterr().out)
+    for command in ("version", "validate", "explain", "doctor", "next-tag"):
+        assert f"calver-scm {command}" in out
+    for fragment in ("Examples", "Exit codes", "--format", "--json", "Output"):
+        assert fragment in out
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "command", ["version", "validate", "explain", "doctor", "next-tag"]
+)
+def test_every_command_help_has_examples(
+    command: str, capsys: pytest.CaptureFixture[str], flat: Callable[[str], str]
+) -> None:
+    """Give each command a description, its options and worked examples."""
+    assert main([command, "--help"]) == 0
+    out = flat(capsys.readouterr().out)
+    assert f"calver-scm {command}" in out
+    assert "Examples" in out
+    assert "--root" in out
+
+
+@pytest.mark.unit
+def test_validate_help_shows_one_positional_argument(
+    capsys: pytest.CaptureFixture[str], flat: Callable[[str], str]
+) -> None:
+    """Document the version as an argument only, not also as a keyword option."""
+    assert main(["validate", "--help"]) == 0
+    out = flat(capsys.readouterr().out)
+    assert "VERSION" in out
+    assert "--candidate" not in out
+    assert "--version" not in out.split("Usage:")[1].split("Examples")[0]
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("command", "reasons"),
+    [("explain", list(ResolutionReason)), ("next-tag", list(NextTagReason))],
+)
+def test_help_lists_every_reason_with_its_wording(
+    command: str,
+    reasons: list[ResolutionReason | NextTagReason],
+    capsys: pytest.CaptureFixture[str],
+    flat: Callable[[str], str],
+) -> None:
+    """Generate the help from the enums so it cannot drift from the code."""
+    assert main([command, "--help"]) == 0
+    out = flat(capsys.readouterr().out)
+    for reason in reasons:
+        assert reason.value in out
+        assert reason.label in out
+
+
+@pytest.mark.unit
+def test_readme_documents_every_reason() -> None:
+    """Fail when a new reason is added without documenting it in the README."""
+    readme = (Path(__file__).parents[1] / "README.md").read_text(encoding="utf-8")
+    for reason in [*ResolutionReason, *NextTagReason]:
+        assert f"`{reason.value}`" in readme

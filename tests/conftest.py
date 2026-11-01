@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import re
 import subprocess
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
@@ -168,3 +169,13 @@ def make_git_project(tmp_path: Path) -> Callable[..., Path]:
         return project
 
     return _make
+
+
+@pytest.fixture
+def flat() -> Callable[[str], str]:
+    """Collapse rich box drawing and wrapping so fragments can be matched."""
+
+    def _flat(text: str) -> str:
+        return " ".join(re.sub(r"[│╭╮╰╯─┬┴┼├┤]", " ", text).split())
+
+    return _flat

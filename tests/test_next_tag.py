@@ -48,13 +48,15 @@ def test_next_tag_prints_only_the_tag_when_piped(
     assert capsys.readouterr().out == "v2026.4.3\n"
 
 
-def test_next_tag_json_and_rich(repo: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_next_tag_json_and_rich(
+    repo: Path, capsys: pytest.CaptureFixture[str], flat: Callable[[str], str]
+) -> None:
     """Report the evidence behind the proposal in the structured and rich formats."""
     with time_machine.travel(APRIL, tick=False):
         assert main(["--json", "next-tag", "--root", str(repo)]) == 0
         data = json.loads(capsys.readouterr().out)
         assert main(["--format", "rich", "next-tag", "--root", str(repo)]) == 0
-        rich = capsys.readouterr().out.splitlines()
+        rich = flat(capsys.readouterr().out)
     assert data == {
         "tag": "v2026.4.3",
         "version": "2026.4.3",
@@ -62,20 +64,27 @@ def test_next_tag_json_and_rich(repo: Path, capsys: pytest.CaptureFixture[str]) 
         "reason": "next_patch",
         "latest_tag": "v2026.04.2",
     }
-    assert rich == ["Next tag v2026.4.3", "next patch, after v2026.04.2"]
+    for fragment in (
+        "next-tag",
+        "Next tag v2026.4.3",
+        "Next patch",
+        "Latest release v2026.04.2",
+    ):
+        assert fragment in rich
 
 
 def test_next_tag_starts_a_new_period_at_zero(
-    repo: Path, capsys: pytest.CaptureFixture[str]
+    repo: Path, capsys: pytest.CaptureFixture[str], flat: Callable[[str], str]
 ) -> None:
     """Restart the patch in a month with no release yet."""
     may = dt.datetime(2026, 5, 2, 12, tzinfo=dt.UTC)
     with time_machine.travel(may, tick=False):
         assert main(["--format", "rich", "next-tag", "--root", str(repo)]) == 0
-    assert capsys.readouterr().out.splitlines() == [
-        "Next tag v2026.5.0",
-        "new period, no earlier release this period",
-    ]
+    out = flat(capsys.readouterr().out)
+    assert "Next tag v2026.5.0" in out
+    assert "New period" in out
+    assert "numbering starts at 0." in out
+    assert "Latest release" not in out
 
 
 def test_next_tag_exits_3_when_the_period_is_already_released(

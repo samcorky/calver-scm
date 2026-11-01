@@ -3,6 +3,8 @@ from __future__ import annotations
 import pytest
 
 from calver_scm.cli_output import OutputFormat, resolve_format
+from calver_scm.models import ResolutionReason
+from calver_scm.release import NextTagReason
 
 pytestmark = pytest.mark.unit
 
@@ -25,9 +27,23 @@ def test_resolve_format(
     assert resolve_format(requested, is_tty=is_tty) is expected
 
 
-def test_every_resolution_reason_has_a_summary() -> None:
-    """Keep the human summaries in step with the engine's reasons."""
-    from calver_scm.cli_output import REASON_SUMMARIES
-    from calver_scm.models import ResolutionReason
+@pytest.mark.parametrize(
+    "reason",
+    [*ResolutionReason, *NextTagReason],
+    ids=lambda reason: f"{type(reason).__name__}.{reason.name}",
+)
+def test_every_reason_has_a_label_and_a_sentence(
+    reason: ResolutionReason | NextTagReason,
+) -> None:
+    """Give every reason human wording; a new member without text fails here."""
+    assert reason.label
+    assert reason.description.endswith(".")
 
-    assert set(REASON_SUMMARIES) == {reason.value for reason in ResolutionReason}
+
+def test_reason_labels_are_distinct_within_each_enum() -> None:
+    """Keep the labels distinguishable in the explain flow line."""
+    for labels in (
+        [reason.label for reason in ResolutionReason],
+        [reason.label for reason in NextTagReason],
+    ):
+        assert len(set(labels)) == len(labels)

@@ -36,6 +36,43 @@ class ResolutionReason(StrEnum):
     PATCH_INCREMENTED = "patch_incremented"
     PATCH_RESET = "patch_reset"
 
+    @property
+    def label(self) -> str:
+        """A short human-readable name for the reason."""
+        return _REASON_TEXT[self][0]
+
+    @property
+    def description(self) -> str:
+        """One sentence explaining why this branch of the algorithm ran."""
+        return _REASON_TEXT[self][1]
+
+
+_REASON_TEXT: dict[ResolutionReason, tuple[str, str]] = {
+    ResolutionReason.EXACT_TAG: (
+        "Exact tag",
+        "HEAD is exactly on a clean tag, so that tag's version is used as it is.",
+    ),
+    ResolutionReason.PATCH_INCREMENTED: (
+        "Patch incremented",
+        "There are commits since a tag from the current period, "
+        "so the patch moves on by one.",
+    ),
+    ResolutionReason.PATCH_RESET: (
+        "Patch reset",
+        "The tag is from an earlier period (or patch is turned off), "
+        "so the patch starts again at 0.",
+    ),
+    ResolutionReason.NO_TAG_FALLBACK: (
+        "No tag, fallback",
+        "There is no tag at all, so the configured fallback applies.",
+    ),
+    ResolutionReason.INCOMPATIBLE_TAG_FALLBACK: (
+        "Incompatible tag, fallback",
+        "The tag does not fit the CalVer scheme (a repository with no tags is "
+        "reported as 0.0), so the configured fallback applies.",
+    ),
+}
+
 
 @dataclass(frozen=True, slots=True)
 class VersionResolution:
