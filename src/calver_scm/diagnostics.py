@@ -24,6 +24,20 @@ FALLBACK_REASONS = frozenset(
 )
 
 
+class CheckCode(StrEnum):
+    """Stable identifier of one doctor check."""
+
+    BUILD_CONFIG = "build_config"
+    CALVER_CONFIG = "calver_config"
+    ENV_OVERRIDES = "env_overrides"
+    GIT_AVAILABLE = "git_available"
+    RESOLUTION = "resolution"
+    SHALLOW_CHECKOUT = "shallow_checkout"
+    NO_COMPATIBLE_TAG = "no_compatible_tag"
+    DIRTY_TREE = "dirty_tree"
+    NO_DEV_LOCAL_SEGMENT = "no_dev_local_segment"
+
+
 class Severity(StrEnum):
     """How seriously a diagnostic should be taken."""
 
@@ -37,7 +51,7 @@ class Severity(StrEnum):
 class Diagnostic:
     """The result of one independent check."""
 
-    code: str
+    code: CheckCode
     severity: Severity
     summary: str
     detail: str | None = None
@@ -77,7 +91,7 @@ def diagnose(root: Path) -> DoctorReport:
     if git is None:
         results.append(
             Diagnostic(
-                "git_available",
+                CheckCode.GIT_AVAILABLE,
                 Severity.ERROR,
                 "Git was not found on PATH",
                 "setuptools-scm needs Git to read tags and commits.",
@@ -85,7 +99,9 @@ def diagnose(root: Path) -> DoctorReport:
             )
         )
     else:
-        results.append(Diagnostic("git_available", Severity.OK, "Git is available"))
+        results.append(
+            Diagnostic(CheckCode.GIT_AVAILABLE, Severity.OK, "Git is available")
+        )
 
     if build_config.severity is Severity.OK:
         results.extend(_check_resolution(project, git_available=git is not None))
@@ -97,7 +113,7 @@ def _check_build_config(project: Path) -> Diagnostic:
         _checked_options(project)
     except ResolutionError as e:
         return Diagnostic(
-            "build_config",
+            CheckCode.BUILD_CONFIG,
             Severity.ERROR,
             "The build configuration cannot be used",
             str(e),
@@ -105,7 +121,9 @@ def _check_build_config(project: Path) -> Diagnostic:
             "version_scheme = 'calver-scm'.",
         )
     return Diagnostic(
-        "build_config", Severity.OK, "The build uses the calver-scm version scheme"
+        CheckCode.BUILD_CONFIG,
+        Severity.OK,
+        "The build uses the calver-scm version scheme",
     )
 
 
@@ -114,13 +132,15 @@ def _check_calver_config(project: Path) -> Diagnostic:
         _load_calver_config(project)
     except RuntimeError as e:
         return Diagnostic(
-            "calver_config",
+            CheckCode.CALVER_CONFIG,
             Severity.ERROR,
             "The CalVer configuration is invalid",
             str(e),
             "Fix [tool.calver-scm] in pyproject.toml or the CALVER_SCM_* variables.",
         )
-    return Diagnostic("calver_config", Severity.OK, "The CalVer configuration is valid")
+    return Diagnostic(
+        CheckCode.CALVER_CONFIG, Severity.OK, "The CalVer configuration is valid"
+    )
 
 
 def _check_env_overrides() -> list[Diagnostic]:
@@ -129,7 +149,7 @@ def _check_env_overrides() -> list[Diagnostic]:
         return []
     return [
         Diagnostic(
-            "env_overrides",
+            CheckCode.ENV_OVERRIDES,
             Severity.INFO,
             "CALVER_SCM_* variables override pyproject.toml",
             ", ".join(f"{name}={os.environ[name]}" for name in active),
@@ -143,7 +163,7 @@ def _check_resolution(project: Path, *, git_available: bool) -> list[Diagnostic]
     except ResolutionError as e:
         return [
             Diagnostic(
-                "resolution",
+                CheckCode.RESOLUTION,
                 Severity.ERROR,
                 "The version could not be resolved",
                 str(e),
@@ -154,7 +174,7 @@ def _check_resolution(project: Path, *, git_available: bool) -> list[Diagnostic]
 
     results = [
         Diagnostic(
-            "resolution",
+            CheckCode.RESOLUTION,
             Severity.OK,
             f"The version resolves to {explanation.version}",
         )
@@ -162,7 +182,7 @@ def _check_resolution(project: Path, *, git_available: bool) -> list[Diagnostic]
     if git_available and is_shallow_repository(project):
         results.append(
             Diagnostic(
-                "shallow_checkout",
+                CheckCode.SHALLOW_CHECKOUT,
                 Severity.WARNING,
                 "This is a shallow clone",
                 "Tags and commit distance may be missing, so the version can be wrong.",
@@ -179,7 +199,7 @@ def _check_explanation(explanation: BuildExplanation) -> list[Diagnostic]:
     if resolution.reason in FALLBACK_REASONS:
         results.append(
             Diagnostic(
-                "no_compatible_tag",
+                CheckCode.NO_COMPATIBLE_TAG,
                 Severity.WARNING,
                 "No tag fits the configured CalVer scheme",
                 f"The fallback applied; the tag seen was {resolution.scm.tag!r}.",
@@ -190,7 +210,7 @@ def _check_explanation(explanation: BuildExplanation) -> list[Diagnostic]:
     if resolution.scm.dirty:
         results.append(
             Diagnostic(
-                "dirty_tree",
+                CheckCode.DIRTY_TREE,
                 Severity.INFO,
                 "The working tree has uncommitted changes",
                 "This is expected during development.",
@@ -199,7 +219,7 @@ def _check_explanation(explanation: BuildExplanation) -> list[Diagnostic]:
     if explanation.config.no_dev and explanation.local_segment:
         results.append(
             Diagnostic(
-                "no_dev_local_segment",
+                CheckCode.NO_DEV_LOCAL_SEGMENT,
                 Severity.WARNING,
                 "no_dev does not remove the local version segment",
                 f"The full version still ends in +{explanation.local_segment}.",

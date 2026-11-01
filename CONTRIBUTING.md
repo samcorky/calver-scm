@@ -69,7 +69,7 @@ Things worth knowing when changing this code:
   import it only under `TYPE_CHECKING`; only `cli_support.py` calls it at runtime.
   `tests/test_import_boundary.py` enforces this.
 - Do not import Cyclopts outside `cli_app.py` and the lazy import in `cli.py`.
-- A new `ResolutionReason` or `NextTagReason` needs a label and a description (the enum owns its wording), and a row in the README table. The `--help` text is generated from the enums, and a test fails if the README misses a reason.
+- A new `ResolutionReason` or `NextTagReason` needs a label and a description (the enum owns its wording), and a row in the README table. The `--help` text is generated from the enums, and a test fails if the README misses a reason. The same applies to a new `validate` error code (`IssueCode`) or `doctor` check (`CheckCode`).
 - New commands take an injected `output: OutputParameter` and add a rendering
   method to `Output` covering rich, plain and JSON; do not `print` results directly.
   Errors go to stderr as plain text.

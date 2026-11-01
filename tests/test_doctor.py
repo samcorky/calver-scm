@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any
 import pytest
 
 from calver_scm.cli import main
-from calver_scm.diagnostics import Diagnostic, DoctorReport, Severity
+from calver_scm.diagnostics import CheckCode, Diagnostic, DoctorReport, Severity
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -177,7 +177,9 @@ def test_report_status_is_the_most_serious_severity(
     severities: list[Severity], expected: Severity
 ) -> None:
     """Treat informational results as healthy and errors as the worst case."""
-    report = DoctorReport(tuple(Diagnostic("x", s, "summary") for s in severities))
+    report = DoctorReport(
+        tuple(Diagnostic(CheckCode.RESOLUTION, s, "summary") for s in severities)
+    )
     assert report.status is expected
 
 

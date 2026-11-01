@@ -10,8 +10,10 @@ import pytest
 import time_machine
 
 from calver_scm.cli import MISSING_EXTRA_MESSAGE, main
+from calver_scm.diagnostics import CheckCode
 from calver_scm.models import ResolutionReason
 from calver_scm.release import NextTagReason
+from calver_scm.validation import IssueCode
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -519,3 +521,11 @@ def test_readme_documents_every_reason() -> None:
     readme = (Path(__file__).parents[1] / "README.md").read_text(encoding="utf-8")
     for reason in [*ResolutionReason, *NextTagReason]:
         assert f"`{reason.value}`" in readme
+
+
+@pytest.mark.unit
+def test_readme_documents_every_error_and_check_code() -> None:
+    """Fail when a validate error code or doctor check code is undocumented."""
+    readme = (Path(__file__).parents[1] / "README.md").read_text(encoding="utf-8")
+    for code in [*IssueCode, *CheckCode]:
+        assert f"`{code.value}`" in readme

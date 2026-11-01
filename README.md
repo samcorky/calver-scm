@@ -572,13 +572,82 @@ calver-scm version | cat              # plain: 2026.4.3.dev3+g1a2b3c4
 calver-scm --format json version
 ```
 
-Piping or redirecting therefore always gives plain text without needing a flag. Errors are always plain text on stderr, whatever the format.
+Piping or redirecting therefore always gives plain text without needing a flag. Plain is the stable format for scripts: one value per line, or `key: value` lines, with no decoration. Run `calver-scm --help`, or `calver-scm COMMAND --help`, for the options, worked examples and exit codes of each command. `calver-scm --version` prints the installed `calver-scm` release.
 
-The verdict, valid or not, goes to stdout so `--json` stays parseable. Errors go to stderr. Exit codes: `0` success or valid, `1` invalid input or `doctor` found errors, `2` invalid usage, bad configuration, or the version could not be resolved, `3` `next-tag` cannot propose a safe tag. `calver-scm --version` prints the installed `calver-scm` release.
+### Exit codes
 
-Run `calver-scm --help`, or `calver-scm COMMAND --help`, for the options, worked examples and exit codes of each command.
+| Code | Meaning |
+| --- | --- |
+| `0` | Success. For `validate`, the input is valid. For `doctor`, no errors (warnings are allowed). |
+| `1` | `validate`: the input is invalid. `doctor`: errors were found. |
+| `2` | Invalid usage, invalid configuration, or the version could not be resolved. |
+| `3` | `next-tag`: no safe tag can be proposed (a shallow clone, or `patch = false` with the period already released). |
 
-If `[tool.calver-scm]`, a `CALVER_SCM_*` variable or `pyproject.toml` itself is invalid, every command stops with `error: Invalid config: …` on stderr and exit code 2. `doctor` is the exception: it reports the problem as an error check, carries on with the other checks, and exits 1. The build behaves the same way in spirit: setuptools-scm raises a `RuntimeError` with the same message, so the build fails instead of producing a wrong version.
+### Errors and invalid configuration
+
+Errors are always plain text on stderr, whatever the format, and leave stdout empty. If `[tool.calver-scm]`, a `CALVER_SCM_*` variable or `pyproject.toml` itself is invalid, every command stops with `error: Invalid config: …` and exit code 2. `doctor` is the exception: it reports the problem as an error check, carries on with the other checks, and exits 1. The build behaves the same way in spirit: setuptools-scm raises a `RuntimeError` with the same message, so the build fails instead of producing a wrong version.
+
+`validate` is also an exception to "errors go to stderr": an invalid input is its answer, so the verdict goes to stdout, and with `--json` it stays parseable.
+
+### JSON output
+
+`--json` (or `--format json`) prints a single JSON object on one line. A missing value is always `null`, never an omitted key. New keys may be added in a future release, so ignore keys you do not know. The `reason`, `severity`, `status` and error `code` values below are stable identifiers; the wording of messages and summaries is not.
+
+```jsonc
+// version
+{"version": "2026.4.3.dev3+g1a2b3c4"}
+
+// validate (exit code 1 when "valid" is false)
+{"valid": false, "input": "2026.13.1",
+ "errors": [{"code": "invalid_month", "message": "Month must be between 1 and 12, got 13"}]}
+
+// next-tag
+{"tag": "v2026.4.3", "version": "2026.4.3", "patch": 3,
+ "reason": "next_patch", "latest_tag": "v2026.4.2"}   // latest_tag is null for a new period
+
+// explain
+{"version": "2026.4.3.dev3+g1a2b3c4", "public_version": "2026.4.3.dev3",
+ "local_segment": "g1a2b3c4",                        // null when the local_scheme adds nothing
+ "reason": "patch_incremented",
+ "scm": {"tag": "2026.4.2", "distance": 3, "dirty": false},
+ "calculation": {"date": "2026-04-15", "timezone": "UTC", "base": "2026.4",
+                 "tag_base": "2026.4", "tag_patch": 2, "patch": 3},
+ "config": {"mode": "month", "scheme": "YYYY.MM", "patch": true, "stable": true,
+            "no_dev": false, "fallback": "dev", "tag_prefix": "v"},
+ "env_overrides": {"CALVER_SCM_NO_DEV": "true"}}      // {} when none are set
+
+// doctor
+{"status": "warning",                                // ok, warning or error
+ "checks": [{"code": "no_compatible_tag", "severity": "warning",
+             "summary": "No tag fits the configured CalVer scheme",
+             "detail": "The fallback applied; the tag seen was '0.0'.",
+             "remediation": "Tag a release, for example v2026.4.0, …"}]}
+```
+
+#### `validate` error codes
+
+| Code | Meaning |
+| --- | --- |
+| `missing_tag_prefix` | With `--tag`, the input does not start with the configured `tag_prefix`. |
+| `invalid_pep440` | Not a valid PEP 440 version. |
+| `missing_stability_prefix` | `stable = false`, but the release does not start with `0.`. |
+| `unexpected_stability_prefix` | `stable = true`, but the release starts with `0.`. |
+| `invalid_release_shape` | The wrong number of components for your scheme. |
+| `invalid_year`, `invalid_month`, `invalid_week`, `invalid_day` | A date component is outside its calendar range. |
+
+#### `doctor` check codes
+
+| Code | Severity | Meaning |
+| --- | --- | --- |
+| `build_config` | `ok` or `error` | The build is configured with `version_scheme = "calver-scm"` (setuptools or Hatch-VCS). |
+| `calver_config` | `ok` or `error` | `[tool.calver-scm]` and the `CALVER_SCM_*` variables are valid. |
+| `env_overrides` | `info` | `CALVER_SCM_*` variables are overriding `pyproject.toml`. |
+| `git_available` | `ok` or `error` | Git is installed and on `PATH`. |
+| `resolution` | `ok` or `error` | The version resolves. Skipped when `build_config` fails. |
+| `shallow_checkout` | `warning` | A shallow clone, so tags and commit distance may be missing. |
+| `no_compatible_tag` | `warning` | No tag fits the scheme, so the fallback applied. |
+| `dirty_tree` | `info` | There are uncommitted changes. |
+| `no_dev_local_segment` | `warning` | `no_dev` does not remove the local version segment. |
 
 Without the `cli` extra the `calver-scm` command still exists but only prints how to install it.
 
@@ -588,6 +657,7 @@ Without the `cli` extra the `calver-scm` command still exists but only prints ho
 
 - Python >= 3.11
 - setuptools-scm >= 10.0.5
+- For the command line: the `cli` extra (installs [Cyclopts](https://github.com/BrianPugh/cyclopts), which also brings in Rich)
 
 ---
 
