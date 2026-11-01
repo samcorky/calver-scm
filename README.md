@@ -15,7 +15,6 @@
 [![Ruff][ruff-badge]][ruff-link]
 [![uv][uv-badge]][uv-link]
 [![mypy][mypy-badge]][mypy-link]
-[![pre-commit.ci][precommit-badge]][precommit-link]
 
 </div>
 
@@ -667,8 +666,8 @@ Without the `cli` extra the `calver-scm` command still exists but only prints ho
 git clone https://github.com/samcorky/calver-scm
 cd calver-scm
 uv sync --group dev
-pre-commit install
-pytest
+uv run poe init
+uv run poe check
 ```
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for full contribution guidance.
@@ -696,7 +695,6 @@ Please report vulnerabilities privately via [`SECURITY.md`](SECURITY.md).
 [ruff-badge]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json
 [uv-badge]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json
 [mypy-badge]: https://img.shields.io/badge/mypy-checked-blue?logo=python&logoColor=white
-[precommit-badge]: https://results.pre-commit.ci/badge/github/samcorky/calver-scm/main.svg
 
 [pypi-link]: https://pypi.org/project/calver-scm/
 [lint-link]: https://github.com/samcorky/calver-scm/actions/workflows/lint.yml
@@ -706,5 +704,4 @@ Please report vulnerabilities privately via [`SECURITY.md`](SECURITY.md).
 [ruff-link]: https://github.com/astral-sh/ruff
 [uv-link]: https://github.com/astral-sh/uv
 [mypy-link]: https://mypy-lang.org/
-[precommit-link]: https://results.pre-commit.ci/latest/github/samcorky/calver-scm/main
 [license-link]: LICENSE

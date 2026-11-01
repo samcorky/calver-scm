@@ -18,9 +18,8 @@
 <!-- Complete all items before requesting a review. -->
 
 - [ ] My branch is up to date with `main`.
-- [ ] I have run `pre-commit run --all-files` with no failures.
-- [ ] I have run `uv run pytest` and all tests pass.
-- [ ] I have run `uv run mypy` with no errors.
+- [ ] I have run `uv run prek run --all-files` with no failures.
+- [ ] I have run `uv run poe check` (ruff, mypy and pytest) and it passes.
 - [ ] I have added or updated tests to cover the changed behaviour.
 - [ ] Coverage has not decreased (`fail_under = 100` in `pyproject.toml`).
 - [ ] I have updated documentation or comments where necessary.

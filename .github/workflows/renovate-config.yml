@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   validate-renovate-config:
-    name: Validate renovate.json
+    name: "Renovate: validate config"
     runs-on: ubuntu-latest
 
     steps:

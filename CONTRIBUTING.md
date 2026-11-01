@@ -17,25 +17,39 @@ Thanks for your interest in improving `calver-scm`.
 
 ```bash
 uv sync --group dev   # includes the `cli` group (Cyclopts)
-pre-commit install
+uv run poe init       # installs the git hooks
 ```
+
+`poe init` installs a pre-commit hook (formatting and lint checks) and a pre-push
+hook that runs only the fast `unit` tests (`poe test-fast`); CI runs everything. Hooks are run by [prek](https://github.com/j178/prek), a
+drop-in replacement for `pre-commit` that reads the same `.pre-commit-config.yaml`.
+`poe init` also replaces any shim left by an earlier `pre-commit install`.
+
+The pre-push hook tests the checked-out tree, not every branch in a stack; CI
+remains the per-branch check.
 
 ## Run checks locally
 
 Before opening a pull request, run:
 
 ```bash
-pre-commit run --all-files
-uv run pytest
-uv run mypy
+uv run prek run --all-files
+uv run poe check
 ```
 
-For quicker iteration while coding:
+`poe check` runs what CI runs: `ruff format --check`, `ruff check`, `mypy` and
+`pytest`. Run `uv run poe` to list every task. For quicker iteration while coding:
 
 ```bash
-uv run ruff format
-uv run ruff check
+uv run poe fix          # ruff format and ruff check --fix
+uv run poe test         # pytest only
+uv run poe build-check  # build the wheel and sdist and test them
 ```
+
+The [autofix.ci](https://autofix.ci) app also runs the hooks on every pull request
+and commits any fixes they make (trailing whitespace, JSON formatting and so on)
+to the branch, so run `git pull --rebase` before pushing again. Dependency and
+hook updates come from Renovate.
 
 ## Architecture
 
@@ -95,6 +109,9 @@ Things worth knowing when changing this code:
 - [`tests/test_scheme_characterisation.py`](tests/test_scheme_characterisation.py)
   is a golden table of every decision branch. If it changes, output changed.
 - Add end-to-end coverage for version parsing/scheme behaviour changes.
+- Every test needs exactly one scope marker, `unit` (fast) or `e2e`. Tests in
+  `tests/test_cli*.py` also get the `cli` marker automatically, so `pytest -m cli`
+  and `pytest -m "not cli"` select them.
 - Do not reduce coverage.
 
 ## Pull requests

@@ -21,11 +21,13 @@ _SCOPE_MARKERS = ("unit", "e2e")
 
 
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
-    """Fail collection when tests are missing or mixing scope markers."""
+    """Mark CLI tests, then fail when tests are missing or mixing scope markers."""
     missing_scope: list[str] = []
     multiple_scope: list[str] = []
 
     for item in items:
+        if item.path.name.startswith("test_cli"):
+            item.add_marker(pytest.mark.cli)
         matched = [name for name in _SCOPE_MARKERS if item.get_closest_marker(name)]
         if not matched:
             missing_scope.append(item.nodeid)

@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   label:
-    name: Apply pull request labels
+    name: "Labels: apply PR labels"
     runs-on: ubuntu-latest
 
     steps:

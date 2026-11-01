@@ -3,12 +3,6 @@ name: Format Check
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-    paths:
-      - ".github/workflows/format.yml"
-      - "pyproject.toml"
-      - "uv.lock"
-      - "src/**"
-      - "tests/**"
   workflow_dispatch:
 
 permissions:
@@ -17,7 +11,7 @@ permissions:
 
 jobs:
   format:
-    name: Ruff Format Check
+    name: "Format: Ruff format check"
     runs-on: ubuntu-latest
 
     steps:
@@ -35,4 +29,4 @@ jobs:
         run: uv sync --frozen --dev
 
       - name: Run Ruff format check
-        run: uv run ruff format --check .
+        run: uv run poe format-check

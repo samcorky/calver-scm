@@ -3,14 +3,6 @@ name: Lint
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-    paths:
-      - ".github/workflows/lint.yml"
-      - ".pre-commit-config.yaml"
-      - "_typos.toml"
-      - "pyproject.toml"
-      - "uv.lock"
-      - "src/**"
-      - "tests/**"
   workflow_dispatch:
 
 permissions:
@@ -18,7 +10,7 @@ permissions:
 
 jobs:
   lint:
-    name: Ruff + Mypy + Typos
+    name: "Lint: Ruff + Mypy"
     runs-on: ubuntu-latest
 
     steps:
@@ -36,10 +28,7 @@ jobs:
         run: uv sync --frozen --dev
 
       - name: Run Ruff lint
-        run: uv run ruff check .
+        run: uv run poe lint
 
       - name: Run Mypy
-        run: uv run mypy .
-
-      - name: Run Typos
-        run: uv run pre-commit run typos --all-files
+        run: uv run poe types
