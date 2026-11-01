@@ -34,8 +34,8 @@ GOLDEN = [
     pytest.param(
         UNSTABLE, None, 4, False, APR, "0.2026.4.0.dev4", id="no-tag-unstable"
     ),
-    # unparseable tag -> fallback
-    pytest.param(MONTH, "garbage", 5, False, APR, "2026.4.0.dev5", id="unparseable"),
+    # unparsable tag -> fallback
+    pytest.param(MONTH, "garbage", 5, False, APR, "2026.4.0.dev5", id="unparsable"),
     # parseable tag without usable release components -> fallback, even if exact
     pytest.param(
         MONTH,
