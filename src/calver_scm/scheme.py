@@ -11,6 +11,9 @@ from calver_scm.utils import _today_in_timezone
 if TYPE_CHECKING:
     from setuptools_scm.version import ScmVersion
 
+    from calver_scm.config import CalverConfig
+    from calver_scm.models import VersionResolution
+
 
 def _resolve_project_root(version: ScmVersion) -> Path:
     """Resolve the project-local directory used for config lookup."""
@@ -33,8 +36,13 @@ def _scm_context(version: ScmVersion) -> ScmContext:
     )
 
 
-def calver_scm(version: ScmVersion) -> str:
-    """Return a CalVer version string derived from SCM state."""
+def resolve_scm_version(version: ScmVersion) -> tuple[VersionResolution, CalverConfig]:
+    """Resolve the public version for a setuptools-scm version, with its config."""
     cfg = _load_calver_config(_resolve_project_root(version))
     today = _today_in_timezone(cfg.timezone)
-    return resolve_version(_scm_context(version), cfg, today=today).public_version
+    return resolve_version(_scm_context(version), cfg, today=today), cfg
+
+
+def calver_scm(version: ScmVersion) -> str:
+    """Return a CalVer version string derived from SCM state."""
+    return resolve_scm_version(version)[0].public_version

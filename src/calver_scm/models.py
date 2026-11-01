@@ -43,9 +43,17 @@ class VersionResolution:
 
     `public_version` is the version scheme output only; setuptools-scm may
     still append a local suffix, so it can differ from the final build version.
+
+    `base` is the date part for `calculation_date`. `tag_base` and `tag_patch`
+    are the date part and patch parsed from the tag, or `None` when there is no
+    usable tag. `patch` is the patch component of `public_version`.
     """
 
     public_version: str
     reason: ResolutionReason
     scm: ScmContext
     calculation_date: date
+    base: str
+    tag_base: str | None
+    tag_patch: int | None
+    patch: int

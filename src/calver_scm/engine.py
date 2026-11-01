@@ -28,12 +28,23 @@ def resolve_version(
     """Compute the CalVer public version and how it was derived; no I/O."""
     base = _base(today, config)
 
-    def resolution(version: str, reason: ResolutionReason) -> VersionResolution:
+    def resolution(
+        version: str,
+        reason: ResolutionReason,
+        *,
+        patch: int,
+        tag_base: str | None = None,
+        tag_patch: int | None = None,
+    ) -> VersionResolution:
         return VersionResolution(
             public_version=_apply_stability_prefix(version, config),
             reason=reason,
             scm=scm,
             calculation_date=today,
+            base=base,
+            tag_base=tag_base,
+            tag_patch=tag_patch,
+            patch=patch,
         )
 
     def fallback(reason: ResolutionReason) -> VersionResolution:
@@ -45,6 +56,7 @@ def resolve_version(
                 no_dev=config.no_dev,
             ),
             reason,
+            patch=0,
         )
 
     if scm.tag is None:
@@ -56,12 +68,15 @@ def resolve_version(
         return fallback(ResolutionReason.INCOMPATIBLE_TAG_FALLBACK)
 
     tag_date_parts, tag_patch = components
+    tag_base = _format_date_parts(tag_date_parts, config)
 
     if scm.distance == 0 and not scm.dirty:
-        tag_base = _format_date_parts(tag_date_parts, config)
         return resolution(
             parsed.format_from_base(base=tag_base, patch=tag_patch),
             ResolutionReason.EXACT_TAG,
+            patch=tag_patch,
+            tag_base=tag_base,
+            tag_patch=tag_patch,
         )
 
     if _is_same_period(today, tag_date_parts, config) and config.patch:
@@ -74,4 +89,7 @@ def resolve_version(
             base=base, patch=patch, distance=scm.distance, no_dev=config.no_dev
         ),
         reason,
+        patch=patch,
+        tag_base=tag_base,
+        tag_patch=tag_patch,
     )

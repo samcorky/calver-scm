@@ -97,3 +97,24 @@ def test_resolve_version_is_deterministic() -> None:
     assert resolve_version(scm, config, today=APR) == resolve_version(
         scm, config, today=APR
     )
+
+
+def test_resolution_records_the_dates_and_patches_behind_the_version() -> None:
+    """Expose the date base, the parsed tag period and both patches."""
+    incremented = resolve_version(
+        ScmContext("2026.4.2", 3, False), CalverConfig(), today=APR
+    )
+    assert (incremented.base, incremented.tag_base) == ("2026.4", "2026.4")
+    assert (incremented.tag_patch, incremented.patch) == (2, 3)
+
+    reset = resolve_version(ScmContext("2026.4.2", 3, False), CalverConfig(), today=MAY)
+    assert (reset.base, reset.tag_base) == ("2026.5", "2026.4")
+    assert (reset.tag_patch, reset.patch) == (2, 0)
+
+    exact = resolve_version(ScmContext("2026.4.2", 0, False), CalverConfig(), today=MAY)
+    assert (exact.tag_base, exact.tag_patch, exact.patch) == ("2026.4", 2, 2)
+
+    fallback = resolve_version(
+        ScmContext("garbage", 5, False), CalverConfig(), today=APR
+    )
+    assert (fallback.tag_base, fallback.tag_patch, fallback.patch) == (None, None, 0)
