@@ -3,12 +3,6 @@ name: Lint
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-    paths:
-      - ".github/workflows/lint.yml"
-      - "pyproject.toml"
-      - "uv.lock"
-      - "src/**"
-      - "tests/**"
   workflow_dispatch:
 
 permissions:
@@ -16,7 +10,7 @@ permissions:
 
 jobs:
   lint:
-    name: Ruff + Mypy
+    name: "Lint: Ruff + Mypy"
     runs-on: ubuntu-latest
 
     steps:

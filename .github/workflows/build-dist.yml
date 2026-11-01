@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   build-and-test:
-    name: Build and test distributions
+    name: "Build: wheel + sdist tests"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

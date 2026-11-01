@@ -8,7 +8,7 @@ permissions:
 
 jobs:
   autofix:
-    name: Hooks (autofix)
+    name: "Hooks: prek (autofix)"
     runs-on: ubuntu-latest
     env:
       # Covered by their own jobs and workflows (lint, format, tests, renovate-config)
