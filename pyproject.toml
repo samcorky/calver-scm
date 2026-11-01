@@ -114,12 +114,31 @@ dev = [
     "hatch-vcs>=0.5.0",
     "hatchling>=1.33.0",
     "mypy>=1.20.0",
-    "pre-commit>=4.5.1",
+    "poethepoet>=0.49.0",
+    "prek>=0.5.9",
     "pytest>=9.0.2",
     "pytest-cov>=7.0.0",
     "ruff>=0.15.9",
     "time-machine>=3.6.0",
+    "tzdata>=2026.6 ; sys_platform == 'win32'",
 ]
+
+[tool.poe.tasks]
+init = { cmd = "prek install --force --hook-type pre-commit --hook-type pre-push", help = "Install the git hooks (pre-commit and pre-push), replacing any old shims" }
+format-check = { cmd = "ruff format --check .", help = "Check formatting (as CI does)" }
+lint = { cmd = "ruff check --no-fix .", help = "Lint without changing files" }
+types = { cmd = "mypy .", help = "Type-check with mypy" }
+test = { cmd = "pytest", help = "Run the test suite with coverage" }
+check = { sequence = ["format-check", "lint", "types", "test"], help = "Run every CI check (ruff, mypy, pytest)" }
+fix = { sequence = ["fmt", "lint-fix"], help = "Apply formatting and auto-fixable lint fixes" }
+fmt = { cmd = "ruff format .", help = "Format code" }
+lint-fix = { cmd = "ruff check --fix .", help = "Apply auto-fixable lint fixes" }
+build = { cmd = "uv build --clear", help = "Build the wheel and sdist into dist/" }
+_test-wheel = { shell = "uv run --isolated --frozen --only-group dev --with dist/*.whl pytest -o pythonpath= -o addopts='--tb=short --strict-markers --strict-config'" }
+_test-sdist = { shell = "uv run --isolated --frozen --only-group dev --with dist/*.tar.gz pytest -o pythonpath= -o addopts='--tb=short --strict-markers --strict-config'" }
+test-wheel = { sequence = ["build", "_test-wheel"], help = "Build, then run the tests against the wheel" }
+test-sdist = { sequence = ["build", "_test-sdist"], help = "Build, then run the tests against the sdist" }
+build-check = { sequence = ["build", "_test-wheel", "_test-sdist"], help = "Build the distributions once and run the tests against both" }
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

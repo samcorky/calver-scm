@@ -415,7 +415,7 @@ def test_calver_scm_uses_current_directory_when_root_missing(
     ("timezone", "expected"),
     [
         ("UTC", "2026.4.3.dev3"),
-        ("Pacific/Auckland", "2026.5.0.dev3"),
+        ("Europe/London", "2026.5.0.dev3"),
     ],
 )
 def test_calver_scm_uses_configured_timezone_for_period_rollover(

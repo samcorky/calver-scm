@@ -32,16 +32,11 @@ jobs:
       - name: Install Python
         run: uv python install
 
-      - name: Build
-        run: uv build
-
-      # Run the full test suite against the built distributions to ensure integrity
-      # (pythonpath is emptied so the installed package is imported, not src/)
-      - name: Test (wheel)
-        run: uv run --isolated --frozen --only-group dev --with dist/*.whl pytest -o pythonpath= -o addopts='--tb=short --strict-markers --strict-config'
-
-      - name: Test (source distribution)
-        run: uv run --isolated --frozen --only-group dev --with dist/*.tar.gz pytest -o pythonpath= -o addopts='--tb=short --strict-markers --strict-config'
+      # Builds the wheel and sdist, then runs the full test suite against each to
+      # ensure integrity (pythonpath is emptied so the installed package is imported,
+      # not src/)
+      - name: Build and test distributions
+        run: uv run --frozen poe build-check
 
       - name: Upload distributions
         uses: actions/upload-artifact@v7

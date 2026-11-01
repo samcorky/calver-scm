@@ -19,7 +19,8 @@
   ],
   "enabledManagers": [
     "pep621",
-    "github-actions"
+    "github-actions",
+    "pre-commit"
   ],
   "prHourlyLimit": 5,
   "prConcurrentLimit": 5,
@@ -77,6 +78,21 @@
       "groupName": "GitHub Actions",
       "commitMessageAction": "Update",
       "commitMessageTopic": "GitHub Actions",
+      "commitMessageExtra": "{{depName}} to {{newVersion}}",
+      "automerge": true,
+      "automergeType": "pr"
+    },
+    {
+      "matchManagers": [
+        "pre-commit"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "groupName": "pre-commit hooks",
+      "commitMessageAction": "Update",
+      "commitMessageTopic": "pre-commit hooks",
       "commitMessageExtra": "{{depName}} to {{newVersion}}",
       "automerge": true,
       "automergeType": "pr"
