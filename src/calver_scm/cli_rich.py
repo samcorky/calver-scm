@@ -187,7 +187,10 @@ def render_next_tag(payload: Payload) -> None:
         Text(reason.description, style="italic"),
     ]
     if payload["latest_tag"]:
-        lines.append(Text.assemble(("Latest release  ", "dim"), payload["latest_tag"]))
+        label = (
+            "Latest pre-release" if payload.get("is_prerelease") else "Latest release"
+        )
+        lines.append(Text.assemble((f"{label}  ", "dim"), payload["latest_tag"]))
     console().print(
         Panel.fit(
             Group(*lines),

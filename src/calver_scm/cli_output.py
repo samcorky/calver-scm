@@ -69,6 +69,8 @@ class Output:
             "patch": plan.patch,
             "reason": plan.reason.value,
             "latest_tag": plan.latest_tag,
+            "is_prerelease": plan.is_prerelease,
+            "channel": plan.channel.value if plan.channel else None,
         }
         self._emit(payload, plan.tag, render_next_tag)
 
