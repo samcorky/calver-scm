@@ -12,17 +12,27 @@ if TYPE_CHECKING:
 
 def _parse_tag(tag: str, cfg: CalverConfig) -> CalverVersion | None:
     """Parse a tag into a CalverVersion."""
+    return _parse_tag_or_reason(tag, cfg)[0]
+
+
+def _parse_tag_or_reason(
+    tag: str, cfg: CalverConfig
+) -> tuple[CalverVersion | None, str | None]:
+    """Parse a tag, or say in a sentence why it cannot be parsed."""
     stripped = tag.removeprefix(cfg.tag_prefix)
 
     try:
         parsed = CalverVersion(stripped)
     except InvalidVersion:
-        return None
+        return None, "not a valid PEP 440 version"
 
     if _has_misplaced_stability_prefix(stripped, parsed, cfg):
-        return None
+        return (
+            None,
+            "starts with '0.', which marks an unstable version, but stable = true",
+        )
 
-    return parsed
+    return parsed, None
 
 
 def _has_misplaced_stability_prefix(

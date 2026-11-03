@@ -206,6 +206,38 @@ def render_next_tag(payload: Payload) -> None:
     )
 
 
+TAG_KIND_STYLES = {
+    "final": "green",
+    "postrelease": "green",
+    "prerelease": "cyan",
+    "dev": "cyan",
+    "ignored": "yellow",
+}
+
+
+def render_tags(payload: Payload) -> None:
+    """Show every tag with how it is read, and why ignored tags are skipped."""
+    if not payload["tags"]:
+        console().print(Text("No tags in this repository.", style="dim"))
+        return
+    table = Table(box=box.ROUNDED, header_style="bold", expand=False)
+    table.add_column("Tag", style="bold", no_wrap=True)
+    table.add_column("Kind", no_wrap=True)
+    table.add_column("Period", no_wrap=True)
+    table.add_column("Patch", justify="right", no_wrap=True)
+    table.add_column("Note", overflow="fold")
+    for entry in payload["tags"]:
+        note = entry["reason"] or ("" if entry["counted"] else "not counted")
+        table.add_row(
+            entry["tag"],
+            Text(entry["kind"], style=TAG_KIND_STYLES[entry["kind"]]),
+            entry["period"] or "-",
+            "-" if entry["patch"] is None else str(entry["patch"]),
+            note,
+        )
+    console().print(table)
+
+
 def render_report(payload: Payload) -> None:
     """Show doctor results as a grouped table with a status summary."""
     table = Table(box=box.ROUNDED, header_style="bold", expand=False)
