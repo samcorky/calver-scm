@@ -11,6 +11,7 @@ import cyclopts
 from calver_scm.cli_output import Output, OutputFormat, resolve_format
 from calver_scm.cli_support import (
     ResolutionError,
+    commits_since,
     explain_build_version,
     is_shallow_repository,
     list_local_tags,
@@ -280,6 +281,7 @@ def doctor(
 calver-scm next-tag
 git tag "$(calver-scm next-tag)"   # plain output is just the tag
 calver-scm next-tag --pre rc       # the next release candidate, e.g. v2026.4.3rc1
+calver-scm next-tag --promote      # finalise the candidate: v2026.4.3rc2 -> v2026.4.3
 calver-scm --json next-tag
 ```
 
@@ -288,8 +290,9 @@ calver-scm --json next-tag
 {_reasons(NextTagReason)}
 
 **Exit codes:** `0` a tag was proposed, `2` unusable configuration or not a Git
-repository, `3` no safe tag (a shallow clone, or `patch = false` and the period is
-already released)."""
+repository, `3` no safe tag (a shallow clone, `patch = false` and the period is
+already released, or `--promote` with no pre-release to promote or one that is not an
+ancestor of HEAD)."""
 )
 def next_tag(
     *,
@@ -297,6 +300,9 @@ def next_tag(
         datetime.date | None, cyclopts.Parameter(name=("--date", "-d"))
     ] = None,
     pre: Annotated[PreReleaseChannel | None, cyclopts.Parameter(name="--pre")] = None,
+    promote: Annotated[
+        bool, cyclopts.Parameter(name="--promote", negative="", show_default=False)
+    ] = False,
     root: RootOption = Path(),
     output: OutputParameter,
 ) -> int:
@@ -316,9 +322,17 @@ def next_tag(
         Propose the next pre-release (a, b or rc) of the release that would
         otherwise be proposed, such as v2026.4.3rc1 then v2026.4.3rc2. Numbers
         are counted separately for each channel.
+    promote
+        Propose the final tag for the latest pre-release of the release that
+        would otherwise be proposed, such as v2026.4.3 for v2026.4.3rc2. Fails
+        if there is no pre-release, or it is not an ancestor of HEAD, and
+        warns if HEAD has moved on since it. Cannot be combined with `--pre`.
     root
         Project directory containing `pyproject.toml`.
     """
+    if pre is not None and promote:
+        print("error: --pre and --promote cannot be combined", file=sys.stderr)
+        return EXIT_RESOLUTION_ERROR
     try:
         config = _load_calver_config(root.resolve())
         if is_shallow_repository(root):
@@ -332,7 +346,10 @@ def next_tag(
             config,
             today=date or _today_in_timezone(config.timezone),
             pre=pre,
+            promote=promote,
         )
+        if promote and plan.latest_tag is not None:
+            _check_promotion(root, plan.latest_tag)
     except (RuntimeError, ResolutionError) as e:
         print(f"error: {e}", file=sys.stderr)
         return EXIT_RESOLUTION_ERROR
@@ -341,3 +358,20 @@ def next_tag(
         return EXIT_TAG_UNAVAILABLE
     output.next_tag(plan)
     return EXIT_OK
+
+
+def _check_promotion(root: Path, prerelease: str) -> None:
+    """Refuse a pre-release HEAD does not contain; warn if HEAD has moved on."""
+    ahead = commits_since(root, prerelease)
+    if ahead is None:
+        raise NextTagError(
+            "prerelease_not_ancestor",
+            f"{prerelease} is not an ancestor of HEAD, so the final tag would not "
+            "contain what was tested",
+        )
+    if ahead:
+        print(
+            f"warning: HEAD is {ahead} commit{'s' if ahead != 1 else ''} ahead of "
+            f"{prerelease}, which is the release candidate being promoted",
+            file=sys.stderr,
+        )

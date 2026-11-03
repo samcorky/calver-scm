@@ -188,7 +188,11 @@ def render_next_tag(payload: Payload) -> None:
     ]
     if payload["latest_tag"]:
         label = (
-            "Latest pre-release" if payload.get("is_prerelease") else "Latest release"
+            "Promoting"
+            if reason is NextTagReason.PROMOTION
+            else "Latest pre-release"
+            if payload.get("is_prerelease")
+            else "Latest release"
         )
         lines.append(Text.assemble((f"{label}  ", "dim"), payload["latest_tag"]))
     console().print(

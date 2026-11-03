@@ -181,3 +181,29 @@ def list_local_tags(project: Path) -> list[str]:
     if result.returncode != 0:
         raise ResolutionError(f"Could not list Git tags: {result.stderr.strip()}")
     return result.stdout.splitlines()
+
+
+def commits_since(project: Path, tag: str) -> int | None:
+    """Count the commits HEAD has beyond `tag`, or `None` if `tag` is not behind it."""
+    ancestor = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", f"refs/tags/{tag}", "HEAD"],
+        cwd=project,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if ancestor.returncode == 1:
+        return None
+    count = subprocess.run(
+        ["git", "rev-list", "--count", f"refs/tags/{tag}..HEAD"],
+        cwd=project,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if ancestor.returncode != 0 or count.returncode != 0:
+        raise ResolutionError(
+            f"Could not compare {tag} with HEAD: "
+            f"{(ancestor.stderr or count.stderr).strip()}"
+        )
+    return int(count.stdout)

@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     import datetime
     from collections.abc import Iterable
 
+    from calver_scm.calver_version import CalverVersion
     from calver_scm.config import CalverConfig
 
 
@@ -29,6 +30,7 @@ class NextTagReason(StrEnum):
     NEXT_PATCH = "next_patch"
     NEW_PRERELEASE = "new_prerelease"
     NEXT_PRERELEASE = "next_prerelease"
+    PROMOTION = "promotion"
 
     @property
     def label(self) -> str:
@@ -59,6 +61,10 @@ _NEXT_TAG_TEXT: dict[NextTagReason, tuple[str, str]] = {
         "Next pre-release",
         "A pre-release of this channel already exists for the next release, "
         "so the number moves on from it.",
+    ),
+    NextTagReason.PROMOTION: (
+        "Promotion",
+        "A pre-release exists for the next release, so the final tag promotes it.",
     ),
 }
 
@@ -95,6 +101,7 @@ def plan_next_tag(
     *,
     today: datetime.date,
     pre: PreReleaseChannel | None = None,
+    promote: bool = False,
 ) -> NextTag:
     """Propose the next release tag for the period containing `today`; no I/O.
 
@@ -107,10 +114,17 @@ def plan_next_tag(
     final release that would otherwise be proposed. Numbering starts at 1 and
     is counted per period, patch and channel, so `rc1` and `a1` do not affect
     each other. Dev releases of a pre-release occupy no number.
+
+    With `promote`, the proposal is the final tag for the latest pre-release
+    (in PEP 440 order, any channel) of the release that would otherwise be
+    proposed, and `latest_tag` names that pre-release. `pre` and `promote`
+    cannot be combined.
     """
+    if pre is not None and promote:
+        raise ValueError("pre and promote are mutually exclusive")
     period = _date_parts(today, config)
     occupied: dict[int, str] = {}
-    pre_numbers: dict[int, tuple[int, str]] = {}
+    candidates: dict[int, list[tuple[CalverVersion, str]]] = {}
     for tag in tags:
         parsed = _parse_tag(tag, config)
         if parsed is None:
@@ -120,13 +134,8 @@ def plan_next_tag(
             continue
         if not parsed.is_prerelease:
             occupied[components[1]] = tag
-        elif pre is not None and parsed.dev is None and parsed.pre is not None:
-            letter, number = parsed.pre
-            if (
-                letter == pre.value
-                and number >= pre_numbers.get(components[1], (0, ""))[0]
-            ):
-                pre_numbers[components[1]] = (number, tag)
+        elif parsed.dev is None and parsed.pre is not None:
+            candidates.setdefault(components[1], []).append((parsed, tag))
 
     latest_patch = max(occupied, default=None)
     latest_tag = None if latest_patch is None else occupied[latest_patch]
@@ -143,12 +152,24 @@ def plan_next_tag(
         )
 
     release = f"{_base(today, config)}.{patch}"
+    found = candidates.get(patch, [])
     if pre is not None:
-        number, latest_tag = pre_numbers.get(patch, (0, None))
+        numbers = [
+            (v.pre[1], tag) for v, tag in found if v.pre and v.pre[0] == pre.value
+        ]
+        number, latest_tag = max(numbers, default=(0, None))
         reason = (
             NextTagReason.NEXT_PRERELEASE if number else NextTagReason.NEW_PRERELEASE
         )
         release = f"{release}{pre.value}{number + 1}"
+    elif promote:
+        if not found:
+            raise NextTagError(
+                "no_prerelease",
+                f"no pre-release of {release} exists to promote",
+            )
+        latest_tag = max(found, key=lambda item: item[0])[1]
+        reason = NextTagReason.PROMOTION
 
     version = _apply_stability_prefix(release, config)
     return NextTag(
