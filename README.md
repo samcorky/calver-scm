@@ -618,6 +618,7 @@ Pick how results are written with the global `--format` option, before or after 
 | `rich` | Coloured, human-friendly output (honours `NO_COLOR`) |
 | `plain` | Unstyled text, one value per line, for scripts |
 | `json` | A single JSON object; `--json` (`-j`) is shorthand for `--format json` (`-f json`) |
+| `github` | For GitHub Actions: appends the result to `$GITHUB_OUTPUT` (see below) |
 
 ```bash
 calver-scm version                    # rich in a terminal
@@ -627,13 +628,60 @@ calver-scm --format json version
 
 Piping or redirecting therefore always gives plain text without needing a flag. Plain is the stable format for scripts: one value per line, or `key: value` lines, with no decoration. Run `calver-scm --help`, or `calver-scm COMMAND --help`, for the options, worked examples and exit codes of each command. `calver-scm --version` prints the installed `calver-scm` release.
 
+#### GitHub Actions
+
+`--format github` appends each top-level scalar value of the result to the file named by `$GITHUB_OUTPUT`, so later steps can read it as `steps.<id>.outputs.<name>`, with no parsing or hand-written `echo >> "$GITHUB_OUTPUT"`. It works with `version`, `next-tag` and `validate`; `explain`, `doctor` and `tags` have nested results and exit `2`. Booleans are `true` or `false`, a missing value is empty, and a value spanning lines is written between a random delimiter so it cannot inject another output. The plain form is still printed so the step log shows the result. Outside Actions, with `GITHUB_OUTPUT` unset or empty, it exits `2` before doing any work. For `validate` the outputs are `valid` and `input`, and an invalid input still writes them before exiting `1`.
+
+`next-tag` writes `tag`, `version`, `patch`, `reason`, `latest_tag`, `is_prerelease` and `channel`. An example release workflow that plans the tag, then tags and publishes it, marking pre-releases:
+
+```yaml
+name: Release
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: Pre-release channel (a, b or rc), or blank for a final release
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # next-tag refuses a shallow clone
+      - uses: astral-sh/setup-uv@v10.3.3
+      - name: Plan the tag
+        id: plan
+        env:
+          CHANNEL: ${{ inputs.channel }}
+        run: uvx calver-scm --format github next-tag ${CHANNEL:+--pre "$CHANNEL"}
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.plan.outputs.tag }}
+          PRERELEASE: ${{ steps.plan.outputs.is_prerelease }}
+        run: |
+          gh release create "$TAG" --target "$GITHUB_SHA" --generate-notes \
+            --prerelease="$PRERELEASE"
+```
+
+To gate a tag-push workflow instead, check the tag against the repository first; the tag being built points at HEAD, so it does not count as already existing:
+
+```yaml
+      - run: uvx calver-scm validate "$GITHUB_REF_NAME" --tag --against-repo
+```
+
 ### Exit codes
 
 | Code | Meaning |
 | --- | --- |
 | `0` | Success. For `validate`, the input is valid. For `doctor`, no errors (warnings are allowed). |
 | `1` | `validate`: the input is invalid. `doctor`: errors were found. |
-| `2` | Invalid usage, invalid configuration, or the version could not be resolved. |
+| `2` | Invalid usage, invalid configuration, or the version could not be resolved. `--format github` without `GITHUB_OUTPUT`, or on a command that does not support it, is invalid usage. |
 | `3` | `validate --against-repo`: a shallow clone. `next-tag`: no safe tag can be proposed (a shallow clone, `patch = false` with the period already released, `--promote` with nothing to promote, or `--post` with no release in the period). |
 
 ### Errors and invalid configuration
