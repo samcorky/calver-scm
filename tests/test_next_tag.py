@@ -228,3 +228,79 @@ def test_next_tag_pre_refuses_a_released_period_without_patches(
     with time_machine.travel(APRIL, tick=False):
         assert main(["next-tag", "--root", str(project), "--pre", "rc"]) == 3
     assert capsys.readouterr().err.endswith("[period_already_released]\n")
+
+
+@pytest.fixture
+def promoting(make_git_project: Callable[..., Path]) -> Path:
+    """A repository whose HEAD is exactly on a release candidate."""
+    project = make_git_project('[tool.calver-scm]\nmode = "month"\n', tag="v2026.04.0")
+    git(project, "commit", "--allow-empty", "-q", "-m", "candidate")
+    git(project, "tag", "v2026.04.1rc1")
+    return project
+
+
+def test_next_tag_promote_proposes_the_final_tag(
+    promoting: Path, capsys: pytest.CaptureFixture[str], flat: Callable[[str], str]
+) -> None:
+    """Finalise the candidate in every format, silently when HEAD is on it."""
+    with time_machine.travel(APRIL, tick=False):
+        assert main(["next-tag", "--root", str(promoting), "--promote"]) == 0
+        captured = capsys.readouterr()
+        assert (captured.out, captured.err) == ("v2026.4.1\n", "")
+        assert main(["--json", "next-tag", "-r", str(promoting), "--promote"]) == 0
+        data = json.loads(capsys.readouterr().out)
+        assert main(["-f", "rich", "next-tag", "-r", str(promoting), "--promote"]) == 0
+        rich = flat(capsys.readouterr().out)
+    assert data["reason"] == "promotion"
+    assert data["latest_tag"] == "v2026.04.1rc1"
+    assert (data["is_prerelease"], data["channel"]) == (False, None)
+    assert "Next tag v2026.4.1" in rich
+    assert "Promoting v2026.04.1rc1" in rich
+
+
+def test_next_tag_promote_warns_when_head_has_moved(
+    promoting: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Still propose the tag, but say HEAD is beyond the candidate."""
+    git(promoting, "commit", "--allow-empty", "-q", "-m", "after")
+    with time_machine.travel(APRIL, tick=False):
+        assert main(["next-tag", "--root", str(promoting), "--promote"]) == 0
+    captured = capsys.readouterr()
+    assert captured.out == "v2026.4.1\n"
+    assert "warning: HEAD is 1 commit ahead of v2026.04.1rc1" in captured.err
+    git(promoting, "commit", "--allow-empty", "-q", "-m", "again")
+    with time_machine.travel(APRIL, tick=False):
+        assert main(["next-tag", "--root", str(promoting), "--promote"]) == 0
+    assert "HEAD is 2 commits ahead" in capsys.readouterr().err
+
+
+def test_next_tag_promote_refuses_a_candidate_off_the_branch(
+    promoting: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Exit 3 when HEAD does not contain the candidate."""
+    git(promoting, "checkout", "-q", "-b", "other", "v2026.04.0")
+    with time_machine.travel(APRIL, tick=False):
+        assert main(["next-tag", "--root", str(promoting), "--promote"]) == 3
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err.endswith("[prerelease_not_ancestor]\n")
+
+
+def test_next_tag_promote_without_a_candidate_exits_3(
+    repo: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Exit 3 when the next release has no pre-release."""
+    git(repo, "tag", "v2026.04.9")
+    with time_machine.travel(APRIL, tick=False):
+        assert main(["next-tag", "--root", str(repo), "--promote"]) == 3
+    assert capsys.readouterr().err.endswith("[no_prerelease]\n")
+
+
+def test_next_tag_pre_and_promote_cannot_be_combined(
+    repo: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Reject the combination as a usage error."""
+    assert main(["next-tag", "--root", str(repo), "--pre", "rc", "--promote"]) == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "cannot be combined" in captured.err

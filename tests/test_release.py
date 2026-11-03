@@ -241,3 +241,54 @@ def test_plan_next_tag_final_is_not_a_prerelease() -> None:
     """Leave the pre-release fields empty on a final proposal."""
     plan = plan_next_tag([], MONTH, today=APR)
     assert (plan.is_prerelease, plan.channel) == (False, None)
+
+
+@pytest.mark.parametrize(
+    ("tags", "tag", "latest"),
+    [
+        (["v2026.4.2", "v2026.4.3rc1"], "v2026.4.3", "v2026.4.3rc1"),
+        # Highest in PEP 440 order wins across channels, ignoring dev releases.
+        (
+            ["v2026.4.3a5", "v2026.4.3rc2", "v2026.4.3b9", "v2026.4.3rc3.dev1"],
+            "v2026.4.0",
+            None,
+        ),
+        (
+            ["v2026.4.0a5", "v2026.4.0rc2", "v2026.4.0b9", "v2026.4.0rc3.dev1"],
+            "v2026.4.0",
+            "v2026.4.0rc2",
+        ),
+    ],
+)
+def test_plan_next_tag_promote(tags: list[str], tag: str, latest: str | None) -> None:
+    """Finalise the latest pre-release of the next final patch."""
+    if latest is None:
+        with pytest.raises(NextTagError) as error:
+            plan_next_tag(tags, MONTH, today=APR, promote=True)
+        assert error.value.code == "no_prerelease"
+        return
+    plan = plan_next_tag(tags, MONTH, today=APR, promote=True)
+    assert (plan.tag, plan.reason, plan.latest_tag) == (
+        tag,
+        NextTagReason.PROMOTION,
+        latest,
+    )
+    assert not plan.is_prerelease
+
+
+def test_plan_next_tag_promote_refuses_a_released_period_without_patches() -> None:
+    """Share the final tag's refusal."""
+    with pytest.raises(NextTagError) as error:
+        plan_next_tag(
+            ["v2026.4", "v2026.4rc1"],
+            CalverConfig(patch=False),
+            today=APR,
+            promote=True,
+        )
+    assert error.value.code == "period_already_released"
+
+
+def test_plan_next_tag_rejects_pre_with_promote() -> None:
+    """Treat the two modes as mutually exclusive."""
+    with pytest.raises(ValueError, match="mutually exclusive"):
+        plan_next_tag([], MONTH, today=APR, pre=PreReleaseChannel.RC, promote=True)

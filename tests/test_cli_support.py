@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from calver_scm.cli_support import ResolutionError, resolve_build_version
+from calver_scm.cli_support import ResolutionError, commits_since, resolve_build_version
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -167,3 +167,9 @@ def test_scm_lookup_failure_is_wrapped(
     root = _write(tmp_path, '[tool.setuptools_scm]\nversion_scheme = "calver-scm"\n')
     with pytest.raises(ResolutionError, match="no repository"):
         resolve_build_version(root)
+
+
+def test_commits_since_reports_an_unreadable_repository(tmp_path: Path) -> None:
+    """Raise a resolution error when git cannot compare the tag with HEAD."""
+    with pytest.raises(ResolutionError, match="Could not compare v1 with HEAD"):
+        commits_since(tmp_path, "v1")
