@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime  # noqa: TC003 - Cyclopts needs it at runtime
+import os
 import sys
 from importlib.metadata import version as package_version
 from pathlib import Path
@@ -117,13 +118,33 @@ def launcher(
     ----------
     output_format
         How to print the result: auto (rich on a terminal, otherwise plain),
-        rich, plain (stable, for scripts) or json.
+        rich, plain (stable, for scripts), json, or github (append the result
+        to `$GITHUB_OUTPUT` for `version`, `next-tag` and `validate`).
     as_json
         Same as `--format json`.
     """
     requested = OutputFormat.JSON if as_json else output_format
-    output = Output(resolve_format(requested, is_tty=sys.stdout.isatty()))
+    resolved = resolve_format(requested, is_tty=sys.stdout.isatty())
     command, bound, ignored = app.parse_args(tokens)
+    github_output = None
+    if resolved is OutputFormat.GITHUB:
+        if command in _NO_GITHUB_OUTPUT:
+            print(
+                f"error: --format github is not supported by "
+                f"{command.__name__.replace('_', '-')}; use it with version, "
+                "next-tag or validate",
+                file=sys.stderr,
+            )
+            return EXIT_RESOLUTION_ERROR
+        if not os.environ.get("GITHUB_OUTPUT"):
+            print(
+                "error: --format github needs the GITHUB_OUTPUT environment variable, "
+                "which GitHub Actions sets for each step",
+                file=sys.stderr,
+            )
+            return EXIT_RESOLUTION_ERROR
+        github_output = Path(os.environ["GITHUB_OUTPUT"])
+    output = Output(resolved, github_output)
     extra = dict.fromkeys(ignored, output)
     result = command(*bound.args, **bound.kwargs, **extra)
     # The built-in help page, shown when no command is given, returns None.
@@ -480,3 +501,7 @@ def tags(
         return EXIT_RESOLUTION_ERROR
     output.tags(classify_tags(local_tags, config))
     return EXIT_OK
+
+
+# Commands whose results are not flat enough to become step outputs.
+_NO_GITHUB_OUTPUT = (explain, doctor, tags)

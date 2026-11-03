@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import uuid
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any
@@ -16,6 +17,7 @@ from calver_scm.cli_rich import (
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from pathlib import Path
 
     from calver_scm.cli_support import BuildExplanation
     from calver_scm.diagnostics import DoctorReport
@@ -32,6 +34,7 @@ class OutputFormat(StrEnum):
     RICH = "rich"
     PLAIN = "plain"
     JSON = "json"
+    GITHUB = "github"
 
 
 def resolve_format(requested: OutputFormat, *, is_tty: bool) -> OutputFormat:
@@ -49,9 +52,14 @@ class Output:
     are views of the same data, so the three formats cannot disagree. Plain is
     the stable, undecorated format meant for scripts. Errors are not routed
     through here: they always go to stderr as plain text.
+
+    The GitHub format appends the payload's top-level scalar values to the
+    `github_output` file, which is `$GITHUB_OUTPUT` in Actions, and still prints
+    the plain form so the step log shows the result.
     """
 
     format: OutputFormat
+    github_output: Path | None = None
 
     def version(self, value: str) -> None:
         """Write a resolved version."""
@@ -110,8 +118,19 @@ class Output:
                 print(json.dumps(payload))
             case OutputFormat.RICH:
                 rich(payload)
+            case OutputFormat.GITHUB:
+                self._write_github_output(payload)
+                print(plain)
             case _:
                 print(plain)
+
+    def _write_github_output(self, payload: Payload) -> None:
+        if self.github_output is None:  # pragma: no cover - checked by the launcher
+            raise RuntimeError("GITHUB_OUTPUT is not set")
+        with self.github_output.open("a", encoding="utf-8") as handle:
+            for key, value in payload.items():
+                if not isinstance(value, dict | list):
+                    handle.write(_github_entry(key, _github_value(value)))
 
 
 def _tags_plain(payload: Payload) -> list[str]:
@@ -128,6 +147,27 @@ def _tags_plain(payload: Payload) -> list[str]:
         )
         for entry in payload["tags"]
     ]
+
+
+def _github_value(value: object) -> str:
+    """Render a scalar as GitHub Actions expects: lowercase booleans, empty for none."""
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return str(value).lower()
+    return str(value)
+
+
+def _github_entry(key: str, value: str) -> str:
+    """Format one `$GITHUB_OUTPUT` entry, guarding values that span lines.
+
+    A value with a newline could otherwise end its entry early and inject
+    another output, so it is written between a random delimiter.
+    """
+    if "\n" not in value and "\r" not in value:
+        return f"{key}={value}\n"
+    delimiter = f"ghadelimiter_{uuid.uuid4().hex}"
+    return f"{key}<<{delimiter}\n{value}\n{delimiter}\n"
 
 
 def _validation_payload(result: ValidationResult) -> Payload:
