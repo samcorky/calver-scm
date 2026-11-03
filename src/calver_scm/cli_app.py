@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime  # noqa: TC003 - Cyclopts needs it at runtime
 import sys
 from importlib.metadata import version as package_version
 from pathlib import Path
@@ -67,6 +68,8 @@ app = cyclopts.App(
     print_error=True,
 )
 
+RootOption = Annotated[Path, cyclopts.Parameter(name=("--root", "-r"))]
+
 # Injected by the launcher; never parsed from the command line.
 OutputParameter = Annotated[Output, cyclopts.Parameter(parse=False)]
 
@@ -75,12 +78,15 @@ OutputParameter = Annotated[Output, cyclopts.Parameter(parse=False)]
 def launcher(
     *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
     output_format: Annotated[
-        OutputFormat, cyclopts.Parameter(name="--format", group="Output")
+        OutputFormat, cyclopts.Parameter(name=("--format", "-f"), group="Output")
     ] = OutputFormat.AUTO,
     as_json: Annotated[
         bool,
         cyclopts.Parameter(
-            name="--json", negative="", group="Output", show_default=False
+            name=("--json", "-j"),
+            negative="",
+            group="Output",
+            show_default=False,
         ),
     ] = False,
 ) -> int:
@@ -116,7 +122,7 @@ calver-scm --json version
 )
 def version(
     *,
-    root: Annotated[Path, cyclopts.Parameter(name="--root")] = Path(),
+    root: RootOption = Path(),
     output: OutputParameter,
 ) -> int:
     """Print the full version the project's build would produce.
@@ -156,9 +162,9 @@ def validate(
     /,
     *,
     tag: Annotated[
-        bool, cyclopts.Parameter(name="--tag", negative="", show_default=False)
+        bool, cyclopts.Parameter(name=("--tag", "-t"), negative="", show_default=False)
     ] = False,
-    root: Annotated[Path, cyclopts.Parameter(name="--root")] = Path(),
+    root: RootOption = Path(),
     output: OutputParameter,
 ) -> int:
     """Check a version or Git tag against the project's CalVer configuration.
@@ -201,7 +207,7 @@ calver-scm --json explain
 )
 def explain(
     *,
-    root: Annotated[Path, cyclopts.Parameter(name="--root")] = Path(),
+    root: RootOption = Path(),
     output: OutputParameter,
 ) -> int:
     """Show how the build version was derived.
@@ -241,7 +247,7 @@ version); `error` (resolution is broken).
 )
 def doctor(
     *,
-    root: Annotated[Path, cyclopts.Parameter(name="--root")] = Path(),
+    root: RootOption = Path(),
     output: OutputParameter,
 ) -> int:
     """Diagnose problems that stop or distort version resolution.
@@ -281,7 +287,10 @@ already released)."""
 )
 def next_tag(
     *,
-    root: Annotated[Path, cyclopts.Parameter(name="--root")] = Path(),
+    date: Annotated[
+        datetime.date | None, cyclopts.Parameter(name=("--date", "-d"))
+    ] = None,
+    root: RootOption = Path(),
     output: OutputParameter,
 ) -> int:
     """Propose the next release tag. Read-only: nothing is created or pushed.
@@ -293,6 +302,9 @@ def next_tag(
 
     Parameters
     ----------
+    date
+        Plan for this calendar date (YYYY-MM-DD) instead of today. The
+        configured timezone does not apply to it.
     root
         Project directory containing `pyproject.toml`.
     """
@@ -305,7 +317,9 @@ def next_tag(
                 "run 'git fetch --unshallow --tags'",
             )
         plan = plan_next_tag(
-            list_local_tags(root), config, today=_today_in_timezone(config.timezone)
+            list_local_tags(root),
+            config,
+            today=date or _today_in_timezone(config.timezone),
         )
     except (RuntimeError, ResolutionError) as e:
         print(f"error: {e}", file=sys.stderr)
