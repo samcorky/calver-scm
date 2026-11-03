@@ -292,3 +292,66 @@ def test_plan_next_tag_rejects_pre_with_promote() -> None:
     """Treat the two modes as mutually exclusive."""
     with pytest.raises(ValueError, match="mutually exclusive"):
         plan_next_tag([], MONTH, today=APR, pre=PreReleaseChannel.RC, promote=True)
+
+
+@pytest.mark.parametrize(
+    ("tags", "config", "tag", "reason", "latest"),
+    [
+        (
+            ["v2026.4.0", "v2026.4.2"],
+            MONTH,
+            "v2026.4.2.post1",
+            NextTagReason.NEW_POSTRELEASE,
+            "v2026.4.2",
+        ),
+        (
+            ["v2026.4.2", "v2026.4.2.post1", "v2026.4.2.post3", "v2026.4.1.post9"],
+            MONTH,
+            "v2026.4.2.post4",
+            NextTagReason.NEXT_POSTRELEASE,
+            "v2026.4.2.post3",
+        ),
+        # Pre-releases and dev releases are not releases to post against.
+        (
+            ["v2026.4.1", "v2026.4.2rc1", "v2026.4.2rc1.post1", "v2026.4.1.post2.dev1"],
+            MONTH,
+            "v2026.4.1.post1",
+            NextTagReason.NEW_POSTRELEASE,
+            "v2026.4.1",
+        ),
+        # patch = false still allows a post-release of the period's one release.
+        (
+            ["v2026.4"],
+            CalverConfig(patch=False),
+            "v2026.4.0.post1",
+            NextTagReason.NEW_POSTRELEASE,
+            "v2026.4",
+        ),
+    ],
+)
+def test_plan_next_tag_post(
+    tags: list[str],
+    config: CalverConfig,
+    tag: str,
+    reason: NextTagReason,
+    latest: str,
+) -> None:
+    """Add a post-release to the latest release of the period."""
+    plan = plan_next_tag(tags, config, today=APR, post=True)
+    assert (plan.tag, plan.reason, plan.latest_tag) == (tag, reason, latest)
+    assert not plan.is_prerelease
+
+
+def test_plan_next_tag_post_honours_the_prefixes() -> None:
+    """Apply the stability and tag prefixes like any other proposal."""
+    config = CalverConfig(stable=False, tag_prefix="rel-")
+    plan = plan_next_tag(["rel-0.2026.4.1"], config, today=APR, post=True)
+    assert (plan.tag, plan.version) == ("rel-0.2026.4.1.post1", "0.2026.4.1.post1")
+
+
+@pytest.mark.parametrize("tags", [[], ["v2026.3.4", "v2026.4.1rc1"]])
+def test_plan_next_tag_post_needs_a_release_in_the_period(tags: list[str]) -> None:
+    """Fail rather than invent a release to post against."""
+    with pytest.raises(NextTagError) as error:
+        plan_next_tag(tags, MONTH, today=APR, post=True)
+    assert error.value.code == "no_release"

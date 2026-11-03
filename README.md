@@ -506,7 +506,9 @@ calver-scm explain
 
 Shows how the build version was derived: the tag, commit distance and dirty flag that setuptools-scm supplied, the date and timezone used, which branch of the algorithm ran (`exact_tag`, `patch_incremented`, `patch_reset`, `no_tag_fallback` or `incompatible_tag_fallback`), the effective configuration, and any `CALVER_SCM_*` overrides in force. It separates the `public_version` that calver-scm produced from the `local_segment` that your `local_scheme` appended afterwards. It runs the same code path as a real build, and it never prints absolute paths.
 
-`--promote` proposes the final tag for the latest pre-release (in PEP 440 order, across channels) of the release that would otherwise be proposed, so `v2026.4.3rc2` gives `v2026.4.3`. It exits `3` with `no_prerelease` when there is nothing to promote, and with `prerelease_not_ancestor` when that pre-release is not an ancestor of HEAD, because the final tag would then not contain what was tested. If HEAD has moved on since the pre-release, it still succeeds but prints a warning to stderr. `--promote` cannot be combined with `--pre` (exit code `2`).
+`--promote` proposes the final tag for the latest pre-release (in PEP 440 order, across channels) of the release that would otherwise be proposed, so `v2026.4.3rc2` gives `v2026.4.3`. It exits `3` with `no_prerelease` when there is nothing to promote, and with `prerelease_not_ancestor` when that pre-release is not an ancestor of HEAD, because the final tag would then not contain what was tested. If HEAD has moved on since the pre-release, it still succeeds but prints a warning to stderr.
+
+`--post` proposes the next post-release of the latest release in the period, so with `v2026.4.2` released it gives `v2026.4.2.post1`, then `.post2`. It is the one mode that adds to an existing release, so unlike a final tag it works with `patch = false`. It exits `3` with `no_release` when the period has no release. `--pre`, `--promote` and `--post` cannot be combined (exit code `2`).
 
 The `reason` is one of:
 
@@ -533,6 +535,7 @@ git tag "$(calver-scm next-tag)"     # prints e.g. v2026.4.3
 calver-scm next-tag --date 2026-05-03  # plan for another date: v2026.5.0
 calver-scm next-tag --pre rc           # next release candidate: v2026.4.3rc1
 calver-scm next-tag --promote          # finalise the candidate: v2026.4.3rc2 -> v2026.4.3
+calver-scm next-tag --post             # post-release of the latest: v2026.4.2.post1
 ```
 
 `next-tag` is read-only: it proposes a tag and never creates or pushes one. It looks at every local tag, not only those reachable from HEAD, so a number used on another branch is not reused. Pre-releases and dev releases occupy no number, post-releases do, and tags that do not fit the scheme are ignored. It honours `tag_prefix`, `stable` and the timezone. With `patch = false` it refuses a second release in the same period. It also refuses a shallow clone, because the tag list cannot be trusted. Tags that exist only on the remote and have not been fetched cannot be seen, so run `git fetch --tags` first.
@@ -550,6 +553,8 @@ The `reason` is one of:
 | `new_prerelease` | **First pre-release.** No pre-release of this channel exists for the next release yet, so numbering starts at 1. |
 | `next_prerelease` | **Next pre-release.** A pre-release of this channel already exists for the next release, so the number moves on from it. |
 | `promotion` | **Promotion.** A pre-release exists for the next release, so the final tag promotes it. |
+| `new_postrelease` | **First post-release.** The latest release has no post-release yet, so numbering starts at 1. |
+| `next_postrelease` | **Next post-release.** The latest release already has a post-release, so the number moves on from it. |
 
 #### How `next-tag` differs from `version`
 
@@ -575,6 +580,7 @@ Use `version` to see what a build will be called, and `next-tag` to decide what 
 | `--date` | `-d` | `next-tag` |
 | `--pre` | none | `next-tag` |
 | `--promote` | none | `next-tag` |
+| `--post` | none | `next-tag` |
 | `--format` | `-f` | every command |
 | `--json` | `-j` | every command |
 
@@ -604,7 +610,7 @@ Piping or redirecting therefore always gives plain text without needing a flag. 
 | `0` | Success. For `validate`, the input is valid. For `doctor`, no errors (warnings are allowed). |
 | `1` | `validate`: the input is invalid. `doctor`: errors were found. |
 | `2` | Invalid usage, invalid configuration, or the version could not be resolved. |
-| `3` | `next-tag`: no safe tag can be proposed (a shallow clone, `patch = false` with the period already released, or `--promote` with nothing to promote). |
+| `3` | `next-tag`: no safe tag can be proposed (a shallow clone, `patch = false` with the period already released, `--promote` with nothing to promote, or `--post` with no release in the period). |
 
 ### Errors and invalid configuration
 

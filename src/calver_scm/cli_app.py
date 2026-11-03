@@ -282,6 +282,7 @@ calver-scm next-tag
 git tag "$(calver-scm next-tag)"   # plain output is just the tag
 calver-scm next-tag --pre rc       # the next release candidate, e.g. v2026.4.3rc1
 calver-scm next-tag --promote      # finalise the candidate: v2026.4.3rc2 -> v2026.4.3
+calver-scm next-tag --post         # post-release of the latest: v2026.4.2.post1
 calver-scm --json next-tag
 ```
 
@@ -292,7 +293,7 @@ calver-scm --json next-tag
 **Exit codes:** `0` a tag was proposed, `2` unusable configuration or not a Git
 repository, `3` no safe tag (a shallow clone, `patch = false` and the period is
 already released, or `--promote` with no pre-release to promote or one that is not an
-ancestor of HEAD)."""
+ancestor of HEAD, or `--post` with no release in the period)."""
 )
 def next_tag(
     *,
@@ -302,6 +303,9 @@ def next_tag(
     pre: Annotated[PreReleaseChannel | None, cyclopts.Parameter(name="--pre")] = None,
     promote: Annotated[
         bool, cyclopts.Parameter(name="--promote", negative="", show_default=False)
+    ] = False,
+    post: Annotated[
+        bool, cyclopts.Parameter(name="--post", negative="", show_default=False)
     ] = False,
     root: RootOption = Path(),
     output: OutputParameter,
@@ -326,12 +330,18 @@ def next_tag(
         Propose the final tag for the latest pre-release of the release that
         would otherwise be proposed, such as v2026.4.3 for v2026.4.3rc2. Fails
         if there is no pre-release, or it is not an ancestor of HEAD, and
-        warns if HEAD has moved on since it. Cannot be combined with `--pre`.
+        warns if HEAD has moved on since it.
+    post
+        Propose the next post-release of the latest release in the period, such
+        as v2026.4.2.post1. Unlike a final tag it works with `patch = false`,
+        and fails only if the period has no release.
+
+    `--pre`, `--promote` and `--post` cannot be combined.
     root
         Project directory containing `pyproject.toml`.
     """
-    if pre is not None and promote:
-        print("error: --pre and --promote cannot be combined", file=sys.stderr)
+    if sum((pre is not None, promote, post)) > 1:
+        print("error: --pre, --promote and --post cannot be combined", file=sys.stderr)
         return EXIT_RESOLUTION_ERROR
     try:
         config = _load_calver_config(root.resolve())
@@ -347,6 +357,7 @@ def next_tag(
             today=date or _today_in_timezone(config.timezone),
             pre=pre,
             promote=promote,
+            post=post,
         )
         if promote and plan.latest_tag is not None:
             _check_promotion(root, plan.latest_tag)
