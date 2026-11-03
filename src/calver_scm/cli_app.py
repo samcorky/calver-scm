@@ -19,7 +19,12 @@ from calver_scm.cli_support import (
 from calver_scm.config import _load_calver_config
 from calver_scm.diagnostics import Severity, diagnose
 from calver_scm.models import ResolutionReason
-from calver_scm.release import NextTagError, NextTagReason, plan_next_tag
+from calver_scm.release import (
+    NextTagError,
+    NextTagReason,
+    PreReleaseChannel,
+    plan_next_tag,
+)
 from calver_scm.utils import _today_in_timezone
 from calver_scm.validation import validate_version
 
@@ -274,6 +279,7 @@ def doctor(
 ```
 calver-scm next-tag
 git tag "$(calver-scm next-tag)"   # plain output is just the tag
+calver-scm next-tag --pre rc       # the next release candidate, e.g. v2026.4.3rc1
 calver-scm --json next-tag
 ```
 
@@ -290,6 +296,7 @@ def next_tag(
     date: Annotated[
         datetime.date | None, cyclopts.Parameter(name=("--date", "-d"))
     ] = None,
+    pre: Annotated[PreReleaseChannel | None, cyclopts.Parameter(name="--pre")] = None,
     root: RootOption = Path(),
     output: OutputParameter,
 ) -> int:
@@ -297,14 +304,18 @@ def next_tag(
 
     Considers every local tag, not only those reachable from HEAD, so a number
     already used on another branch is never reused. Pre-releases occupy no
-    number. Tags that exist only on the remote and have not been fetched cannot
-    be seen: run `git fetch --tags` first.
+    final number. Tags that exist only on the remote and have not been
+    fetched cannot be seen: run `git fetch --tags` first.
 
     Parameters
     ----------
     date
         Plan for this calendar date (YYYY-MM-DD) instead of today. The
         configured timezone does not apply to it.
+    pre
+        Propose the next pre-release (a, b or rc) of the release that would
+        otherwise be proposed, such as v2026.4.3rc1 then v2026.4.3rc2. Numbers
+        are counted separately for each channel.
     root
         Project directory containing `pyproject.toml`.
     """
@@ -320,6 +331,7 @@ def next_tag(
             list_local_tags(root),
             config,
             today=date or _today_in_timezone(config.timezone),
+            pre=pre,
         )
     except (RuntimeError, ResolutionError) as e:
         print(f"error: {e}", file=sys.stderr)

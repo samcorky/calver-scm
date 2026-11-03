@@ -23,7 +23,15 @@ def git(project: Path, *args: str) -> None:
     # Explicit identity: CI runners have no global user.name or user.email.
     identity = ["-c", "user.name=test", "-c", "user.email=test@example.com"]
     subprocess.run(
-        ["git", *identity, "-c", "commit.gpgsign=false", *args],
+        [
+            "git",
+            *identity,
+            "-c",
+            "commit.gpgsign=false",
+            "-c",
+            "tag.gpgsign=false",
+            *args,
+        ],
         cwd=project,
         check=True,
         capture_output=True,
@@ -63,6 +71,8 @@ def test_next_tag_json_and_rich(
         "patch": 3,
         "reason": "next_patch",
         "latest_tag": "v2026.04.2",
+        "is_prerelease": False,
+        "channel": None,
     }
     for fragment in (
         "next-tag",
@@ -163,3 +173,58 @@ def test_next_tag_malformed_date_is_a_usage_error(
     assert captured.out == ""
     assert value in captured.err
     assert "Unknown option" not in captured.err
+
+
+def test_next_tag_pre_proposes_the_next_candidate(
+    repo: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Number the candidate against the tags already present, per channel."""
+    with time_machine.travel(APRIL, tick=False):
+        assert main(["next-tag", "--root", str(repo), "--pre", "rc"]) == 0
+        assert capsys.readouterr().out == "v2026.4.3rc2\n"
+        assert main(["next-tag", "--root", str(repo), "--pre", "a"]) == 0
+        assert capsys.readouterr().out == "v2026.4.3a1\n"
+
+
+def test_next_tag_pre_json_and_rich(
+    repo: Path, capsys: pytest.CaptureFixture[str], flat: Callable[[str], str]
+) -> None:
+    """Report the channel and the latest pre-release in every format."""
+    with time_machine.travel(APRIL, tick=False):
+        assert main(["--json", "next-tag", "-r", str(repo), "--pre", "rc"]) == 0
+        data = json.loads(capsys.readouterr().out)
+        assert (
+            main(["--format", "rich", "next-tag", "-r", str(repo), "--pre", "rc"]) == 0
+        )
+        rich = flat(capsys.readouterr().out)
+    assert data == {
+        "tag": "v2026.4.3rc2",
+        "version": "2026.4.3rc2",
+        "patch": 3,
+        "reason": "next_prerelease",
+        "latest_tag": "v2026.04.3rc1",
+        "is_prerelease": True,
+        "channel": "rc",
+    }
+    assert "Next tag v2026.4.3rc2" in rich
+    assert "Latest pre-release v2026.04.3rc1" in rich
+
+
+def test_next_tag_pre_rejects_an_unknown_channel(
+    repo: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Treat a channel other than a, b or rc as a usage error."""
+    assert main(["next-tag", "--root", str(repo), "--pre", "alpha"]) == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "alpha" in captured.err
+
+
+def test_next_tag_pre_refuses_a_released_period_without_patches(
+    make_git_project: Callable[..., Path], capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Share the final tag's refusal rather than starting another period."""
+    project = make_git_project("[tool.calver-scm]\npatch = false\n", tag="v2026.04.0")
+    with time_machine.travel(APRIL, tick=False):
+        assert main(["next-tag", "--root", str(project), "--pre", "rc"]) == 3
+    assert capsys.readouterr().err.endswith("[period_already_released]\n")

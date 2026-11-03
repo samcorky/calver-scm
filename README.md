@@ -529,11 +529,14 @@ Runs independent checks and carries on past failures: whether the build configur
 ```bash
 git tag "$(calver-scm next-tag)"     # prints e.g. v2026.4.3
 calver-scm next-tag --date 2026-05-03  # plan for another date: v2026.5.0
+calver-scm next-tag --pre rc           # next release candidate: v2026.4.3rc1
 ```
 
 `next-tag` is read-only: it proposes a tag and never creates or pushes one. It looks at every local tag, not only those reachable from HEAD, so a number used on another branch is not reused. Pre-releases and dev releases occupy no number, post-releases do, and tags that do not fit the scheme are ignored. It honours `tag_prefix`, `stable` and the timezone. With `patch = false` it refuses a second release in the same period. It also refuses a shallow clone, because the tag list cannot be trusted. Tags that exist only on the remote and have not been fetched cannot be seen, so run `git fetch --tags` first.
 
 `--date YYYY-MM-DD` (`-d`) plans for that calendar date instead of today, which is useful for backfilling and for testing. The configured timezone does not apply to it, and anything that is not an ISO date is a usage error (exit code `2`).
+
+`--pre a|b|rc` proposes the next pre-release of the release that would otherwise be proposed, so with `v2026.4.2` released it gives `v2026.4.3rc1`, then `v2026.4.3rc2` once that exists. Numbers start at 1 and are counted per period, patch and channel, so an existing `rc2` does not affect `--pre b`. Dev releases occupy no number. `--pre` follows the same refusals as a final tag, including `patch = false` with the period already released.
 
 The `reason` is one of:
 
@@ -541,6 +544,8 @@ The `reason` is one of:
 | --- | --- |
 | `new_period` | **New period.** No release exists in this period yet, so numbering starts at 0. |
 | `next_patch` | **Next patch.** A release already exists in this period, so the patch moves on from it. |
+| `new_prerelease` | **First pre-release.** No pre-release of this channel exists for the next release yet, so numbering starts at 1. |
+| `next_prerelease` | **Next pre-release.** A pre-release of this channel already exists for the next release, so the number moves on from it. |
 
 #### How `next-tag` differs from `version`
 
@@ -564,6 +569,7 @@ Use `version` to see what a build will be called, and `next-tag` to decide what 
 | `--root` | `-r` | every command |
 | `--tag` | `-t` | `validate` |
 | `--date` | `-d` | `next-tag` |
+| `--pre` | none | `next-tag` |
 | `--format` | `-f` | every command |
 | `--json` | `-j` | every command |
 
@@ -615,7 +621,8 @@ Errors are always plain text on stderr, whatever the format, and leave stdout em
 
 // next-tag
 {"tag": "v2026.4.3", "version": "2026.4.3", "patch": 3,
- "reason": "next_patch", "latest_tag": "v2026.4.2"}   // latest_tag is null for a new period
+ "reason": "next_patch", "latest_tag": "v2026.4.2",   // latest_tag is null for a new period
+ "is_prerelease": false, "channel": null}             // channel is "a", "b" or "rc" with --pre
 
 // explain
 {"version": "2026.4.3.dev3+g1a2b3c4", "public_version": "2026.4.3.dev3",

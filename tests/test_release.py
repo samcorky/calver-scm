@@ -5,7 +5,12 @@ import datetime as dt
 import pytest
 
 from calver_scm.config import CalverConfig, CalverMode
-from calver_scm.release import NextTagError, NextTagReason, plan_next_tag
+from calver_scm.release import (
+    NextTagError,
+    NextTagReason,
+    PreReleaseChannel,
+    plan_next_tag,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -145,3 +150,94 @@ def test_planning_does_not_depend_on_tag_order() -> None:
     reverse = plan_next_tag(["v2026.4.3", "v2026.4.9", "v2026.4.1"], MONTH, today=APR)
     assert forward == reverse
     assert forward.tag == "v2026.4.10"
+
+
+@pytest.mark.parametrize(
+    ("tags", "config", "channel", "tag", "reason", "latest"),
+    [
+        ([], MONTH, "rc", "v2026.4.0rc1", NextTagReason.NEW_PRERELEASE, None),
+        (
+            ["v2026.4.2"],
+            MONTH,
+            "rc",
+            "v2026.4.3rc1",
+            NextTagReason.NEW_PRERELEASE,
+            None,
+        ),
+        (
+            ["v2026.4.2", "v2026.4.3rc1", "v2026.4.3rc2"],
+            MONTH,
+            "rc",
+            "v2026.4.3rc3",
+            NextTagReason.NEXT_PRERELEASE,
+            "v2026.4.3rc2",
+        ),
+        # Channels are counted separately, so a lower channel restarts at 1.
+        (
+            ["v2026.4.3rc1", "v2026.4.3a2"],
+            MONTH,
+            "b",
+            "v2026.4.0b1",
+            NextTagReason.NEW_PRERELEASE,
+            None,
+        ),
+        # Only the next final patch's candidates count; dev releases occupy nothing.
+        (
+            ["v2026.4.0", "v2026.4.0rc4", "v2026.4.1rc2.dev1", "v2026.3.9rc7"],
+            MONTH,
+            "rc",
+            "v2026.4.1rc1",
+            NextTagReason.NEW_PRERELEASE,
+            None,
+        ),
+        (
+            ["v2026.4.0rc2.post1", "junk"],
+            MONTH,
+            "rc",
+            "v2026.4.0rc3",
+            NextTagReason.NEXT_PRERELEASE,
+            "v2026.4.0rc2.post1",
+        ),
+    ],
+)
+def test_plan_next_tag_pre(
+    tags: list[str],
+    config: CalverConfig,
+    channel: str,
+    tag: str,
+    reason: NextTagReason,
+    latest: str | None,
+) -> None:
+    """Number a pre-release per period, next final patch and channel."""
+    plan = plan_next_tag(tags, config, today=APR, pre=PreReleaseChannel(channel))
+    assert (plan.tag, plan.reason, plan.latest_tag) == (tag, reason, latest)
+    assert plan.is_prerelease
+    assert plan.channel is PreReleaseChannel(channel)
+
+
+def test_plan_next_tag_pre_honours_the_stability_prefix_and_tag_prefix() -> None:
+    """Apply the same prefixes as a final tag."""
+    config = CalverConfig(stable=False, tag_prefix="rel-")
+    plan = plan_next_tag(
+        ["rel-0.2026.4.0rc1"], config, today=APR, pre=PreReleaseChannel.RC
+    )
+    assert plan.tag == "rel-0.2026.4.0rc2"
+    assert plan.version == "0.2026.4.0rc2"
+
+
+def test_plan_next_tag_pre_refuses_a_released_period_without_patches() -> None:
+    """Raise the same error as a final tag."""
+    with pytest.raises(NextTagError) as error:
+        plan_next_tag(
+            ["v2026.4"],
+            CalverConfig(patch=False),
+            today=APR,
+            pre=PreReleaseChannel.RC,
+        )
+    assert error.value.code == "period_already_released"
+
+
+def test_plan_next_tag_final_is_not_a_prerelease() -> None:
+    """Leave the pre-release fields empty on a final proposal."""
+    plan = plan_next_tag([], MONTH, today=APR)
+    assert (plan.is_prerelease, plan.channel) == (False, None)
