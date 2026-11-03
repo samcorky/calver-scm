@@ -4,8 +4,13 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import TYPE_CHECKING
 
-from calver_scm.parser import _parse_tag, _release_components
-from calver_scm.utils import _apply_stability_prefix, _base, _date_parts
+from calver_scm.parser import _parse_tag, _parse_tag_or_reason, _release_components
+from calver_scm.utils import (
+    _apply_stability_prefix,
+    _base,
+    _date_parts,
+    _format_date_parts,
+)
 
 if TYPE_CHECKING:
     import datetime
@@ -213,3 +218,67 @@ def plan_next_tag(
     return NextTag(
         f"{config.tag_prefix}{version}", version, patch, reason, latest_tag, pre
     )
+
+
+class TagKind(StrEnum):
+    """How a tag is treated when numbering releases."""
+
+    FINAL = "final"
+    PRERELEASE = "prerelease"
+    POSTRELEASE = "postrelease"
+    DEV = "dev"
+    IGNORED = "ignored"
+
+
+@dataclass(frozen=True, slots=True)
+class TagInfo:
+    """How one tag reads under the configured scheme.
+
+    `period` is the rendered date part and `patch` the patch number; both are
+    `None` for an ignored tag, whose `reason` says why `next-tag` skips it.
+    """
+
+    tag: str
+    kind: TagKind
+    period: str | None
+    patch: int | None
+    reason: str | None
+
+    @property
+    def counted(self) -> bool:
+        """Whether the tag occupies a release number in its period."""
+        return self.kind in (TagKind.FINAL, TagKind.POSTRELEASE)
+
+
+def classify_tags(tags: Iterable[str], config: CalverConfig) -> list[TagInfo]:
+    """Describe how `next-tag` reads each tag; no I/O.
+
+    Understood tags come first, oldest period first, then ignored ones by name.
+    """
+    parsed_tags: list[tuple[tuple[tuple[int, ...], CalverVersion], TagInfo]] = []
+    ignored: list[TagInfo] = []
+    for tag in sorted(set(tags)):
+        version, reason = _parse_tag_or_reason(tag, config)
+        components = None if version is None else _release_components(version, config)
+        if version is not None and components is None:
+            reason = (
+                f"{len(version.release)} release components do not fit the scheme "
+                f"{'.'.join(config.scheme_tokens)}"
+            )
+        if version is None or components is None:
+            ignored.append(TagInfo(tag, TagKind.IGNORED, None, None, reason))
+            continue
+        if version.dev is not None:
+            kind = TagKind.DEV
+        elif version.pre is not None:
+            kind = TagKind.PRERELEASE
+        elif version.post is not None:
+            kind = TagKind.POSTRELEASE
+        else:
+            kind = TagKind.FINAL
+        info = TagInfo(
+            tag, kind, _format_date_parts(components[0]), components[1], None
+        )
+        parsed_tags.append(((components[0], version), info))
+    parsed_tags.sort(key=lambda item: item[0])
+    return [info for _, info in parsed_tags] + ignored

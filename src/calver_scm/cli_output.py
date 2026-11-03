@@ -9,6 +9,7 @@ from calver_scm.cli_rich import (
     render_explanation,
     render_next_tag,
     render_report,
+    render_tags,
     render_validation,
     render_version,
 )
@@ -18,7 +19,7 @@ if TYPE_CHECKING:
 
     from calver_scm.cli_support import BuildExplanation
     from calver_scm.diagnostics import DoctorReport
-    from calver_scm.release import NextTag
+    from calver_scm.release import NextTag, TagInfo
     from calver_scm.validation import ValidationResult
 
 Payload = dict[str, Any]
@@ -74,6 +75,23 @@ class Output:
         }
         self._emit(payload, plan.tag, render_next_tag)
 
+    def tags(self, infos: list[TagInfo]) -> None:
+        """Write how each local tag reads under the scheme."""
+        payload: Payload = {
+            "tags": [
+                {
+                    "tag": info.tag,
+                    "kind": info.kind.value,
+                    "period": info.period,
+                    "patch": info.patch,
+                    "counted": info.counted,
+                    "reason": info.reason,
+                }
+                for info in infos
+            ]
+        }
+        self._emit(payload, "\n".join(_tags_plain(payload)), render_tags)
+
     def report(self, report: DoctorReport) -> None:
         """Write the doctor diagnostics."""
         payload = _report_payload(report)
@@ -94,6 +112,22 @@ class Output:
                 rich(payload)
             case _:
                 print(plain)
+
+
+def _tags_plain(payload: Payload) -> list[str]:
+    """One tab-separated line per tag: tag, kind, period, patch, then any reason."""
+    return [
+        "\t".join(
+            [
+                entry["tag"],
+                entry["kind"],
+                entry["period"] or "-",
+                "-" if entry["patch"] is None else str(entry["patch"]),
+                *([entry["reason"]] if entry["reason"] else []),
+            ]
+        )
+        for entry in payload["tags"]
+    ]
 
 
 def _validation_payload(result: ValidationResult) -> Payload:

@@ -574,6 +574,26 @@ The `reason` is one of:
 
 Use `version` to see what a build will be called, and `next-tag` to decide what to tag.
 
+### Listing tags
+
+```bash
+calver-scm tags
+```
+
+The companion to `next-tag`: it lists the local tags and how each reads under your scheme, so when a tag is not counted you can see why. Read-only. Understood tags come first, oldest period first, then the ignored ones by name. A shallow clone prints a warning to stderr, because tags may be missing.
+
+| Kind | Meaning |
+| --- | --- |
+| `final` | A release. It occupies its patch number. |
+| `postrelease` | A post-release. It occupies its number too. |
+| `prerelease` | A pre-release (`a`, `b`, `rc`). Not counted when numbering finals. |
+| `dev` | A dev release. Not counted. |
+| `ignored` | Does not fit the scheme (not PEP 440, a stray `0.` prefix with `stable = true`, or the wrong number of components). The reason is shown. |
+
+Plain output is one tab-separated line per tag: tag, kind, period, patch (`-` when ignored) and, for an ignored tag, the reason. JSON gives `tag`, `kind`, `period`, `patch`, `counted` and `reason` for each tag under a `tags` key.
+
+A tag without the configured prefix is still read if it is a valid version, exactly as `next-tag` reads it.
+
 ### Short flags
 
 | Flag | Short | Applies to |
@@ -633,6 +653,10 @@ Errors are always plain text on stderr, whatever the format, and leave stdout em
 // validate (exit code 1 when "valid" is false)
 {"valid": false, "input": "2026.13.1",
  "errors": [{"code": "invalid_month", "message": "Month must be between 1 and 12, got 13"}]}
+
+// tags
+{"tags": [{"tag": "v2026.4.3rc1", "kind": "prerelease", "period": "2026.4", "patch": 3,
+           "counted": false, "reason": null}]}       // reason is set only for "ignored"
 
 // next-tag
 {"tag": "v2026.4.3", "version": "2026.4.3", "patch": 3,

@@ -25,6 +25,7 @@ from calver_scm.release import (
     NextTagError,
     NextTagReason,
     PreReleaseChannel,
+    classify_tags,
     plan_next_tag,
 )
 from calver_scm.utils import _today_in_timezone
@@ -34,6 +35,18 @@ EXIT_OK = 0
 EXIT_INVALID = 1
 EXIT_RESOLUTION_ERROR = 2
 EXIT_TAG_UNAVAILABLE = 3
+
+
+def _kinds() -> str:
+    """List the tag kinds with what each means for numbering, as a Markdown table."""
+    return (
+        "| Kind | Meaning |\n|---|---|\n"
+        "| `final` | A release. It occupies its patch number. |\n"
+        "| `postrelease` | A post-release. It occupies its number too. |\n"
+        "| `prerelease` | A pre-release (`a`, `b`, `rc`). Not counted for finals. |\n"
+        "| `dev` | A dev release. Not counted. |\n"
+        "| `ignored` | Does not fit the scheme; the reason is shown. |"
+    )
 
 
 def _reasons(enum: type[ResolutionReason] | type[NextTagReason]) -> str:
@@ -50,6 +63,7 @@ calver-scm version                    # the version your build would produce
 calver-scm explain                    # how that version was derived
 calver-scm doctor                     # check the setup for problems
 calver-scm next-tag                   # the next release tag (read-only)
+calver-scm tags                       # how each local tag is read
 calver-scm validate v2026.4.2 --tag   # check a tag against your scheme
 calver-scm --json version             # machine-readable output
 ```
@@ -418,3 +432,51 @@ def _check_promotion(root: Path, prerelease: str) -> None:
             f"{prerelease}, which is the release candidate being promoted",
             file=sys.stderr,
         )
+
+
+@app.command(
+    help_epilogue=f"""\
+**Examples**
+
+```
+calver-scm tags
+calver-scm --json tags
+calver-scm tags | grep ignored   # tags next-tag does not count, and why
+```
+
+**Kinds**
+
+{_kinds()}
+
+Plain output has one tab-separated line per tag: tag, kind, period, patch and, for
+an ignored tag, the reason."""
+)
+def tags(
+    *,
+    root: RootOption = Path(),
+    output: OutputParameter,
+) -> int:
+    """List the local tags and how each one reads under the scheme.
+
+    The companion to `next-tag`: it shows which tags are counted when numbering,
+    and why the others are not. Read-only. Understood tags come first, oldest
+    period first, then the ignored ones by name.
+
+    Parameters
+    ----------
+    root
+        Project directory containing `pyproject.toml`.
+    """
+    try:
+        config = _load_calver_config(root.resolve())
+        local_tags = list_local_tags(root)
+        if is_shallow_repository(root):
+            print(
+                "warning: this is a shallow clone, so some tags may be missing",
+                file=sys.stderr,
+            )
+    except (RuntimeError, ResolutionError) as e:
+        print(f"error: {e}", file=sys.stderr)
+        return EXIT_RESOLUTION_ERROR
+    output.tags(classify_tags(local_tags, config))
+    return EXIT_OK
