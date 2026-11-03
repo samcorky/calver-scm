@@ -31,6 +31,8 @@ class NextTagReason(StrEnum):
     NEW_PRERELEASE = "new_prerelease"
     NEXT_PRERELEASE = "next_prerelease"
     PROMOTION = "promotion"
+    NEW_POSTRELEASE = "new_postrelease"
+    NEXT_POSTRELEASE = "next_postrelease"
 
     @property
     def label(self) -> str:
@@ -65,6 +67,15 @@ _NEXT_TAG_TEXT: dict[NextTagReason, tuple[str, str]] = {
     NextTagReason.PROMOTION: (
         "Promotion",
         "A pre-release exists for the next release, so the final tag promotes it.",
+    ),
+    NextTagReason.NEW_POSTRELEASE: (
+        "First post-release",
+        "The latest release has no post-release yet, so numbering starts at 1.",
+    ),
+    NextTagReason.NEXT_POSTRELEASE: (
+        "Next post-release",
+        "The latest release already has a post-release, "
+        "so the number moves on from it.",
     ),
 }
 
@@ -102,6 +113,7 @@ def plan_next_tag(
     today: datetime.date,
     pre: PreReleaseChannel | None = None,
     promote: bool = False,
+    post: bool = False,
 ) -> NextTag:
     """Propose the next release tag for the period containing `today`; no I/O.
 
@@ -117,14 +129,20 @@ def plan_next_tag(
 
     With `promote`, the proposal is the final tag for the latest pre-release
     (in PEP 440 order, any channel) of the release that would otherwise be
-    proposed, and `latest_tag` names that pre-release. `pre` and `promote`
-    cannot be combined.
+    proposed, and `latest_tag` names that pre-release.
+
+    With `post`, the proposal is the next post-release of the latest release in
+    the period. This is the one mode that adds to an existing release, so it
+    works with `patch = false` and fails only when the period has no release.
+
+    `pre`, `promote` and `post` cannot be combined.
     """
-    if pre is not None and promote:
-        raise ValueError("pre and promote are mutually exclusive")
+    if sum((pre is not None, promote, post)) > 1:
+        raise ValueError("pre, promote and post are mutually exclusive")
     period = _date_parts(today, config)
     occupied: dict[int, str] = {}
     candidates: dict[int, list[tuple[CalverVersion, str]]] = {}
+    posts: dict[int, list[tuple[int, str]]] = {}
     for tag in tags:
         parsed = _parse_tag(tag, config)
         if parsed is None:
@@ -134,11 +152,31 @@ def plan_next_tag(
             continue
         if not parsed.is_prerelease:
             occupied[components[1]] = tag
+            if parsed.post is not None:
+                posts.setdefault(components[1], []).append((parsed.post, tag))
         elif parsed.dev is None and parsed.pre is not None:
             candidates.setdefault(components[1], []).append((parsed, tag))
 
     latest_patch = max(occupied, default=None)
     latest_tag = None if latest_patch is None else occupied[latest_patch]
+
+    if post:
+        if latest_patch is None:
+            raise NextTagError(
+                "no_release",
+                f"no release exists for {_base(today, config)} to add a "
+                "post-release to",
+            )
+        number, latest_tag = max(posts.get(latest_patch, []), default=(0, latest_tag))
+        version = _apply_stability_prefix(
+            f"{_base(today, config)}.{latest_patch}.post{number + 1}", config
+        )
+        reason = (
+            NextTagReason.NEXT_POSTRELEASE if number else NextTagReason.NEW_POSTRELEASE
+        )
+        return NextTag(
+            f"{config.tag_prefix}{version}", version, latest_patch, reason, latest_tag
+        )
 
     if latest_patch is None:
         patch, reason = 0, NextTagReason.NEW_PERIOD

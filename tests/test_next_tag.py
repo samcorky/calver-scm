@@ -304,3 +304,52 @@ def test_next_tag_pre_and_promote_cannot_be_combined(
     captured = capsys.readouterr()
     assert captured.out == ""
     assert "cannot be combined" in captured.err
+
+
+def test_next_tag_post_proposes_a_post_release(
+    repo: Path, capsys: pytest.CaptureFixture[str], flat: Callable[[str], str]
+) -> None:
+    """Add a post-release to the latest release in every format."""
+    with time_machine.travel(APRIL, tick=False):
+        assert main(["next-tag", "--root", str(repo), "--post"]) == 0
+        assert capsys.readouterr().out == "v2026.4.2.post1\n"
+        git(repo, "tag", "v2026.04.2.post1")
+        assert main(["--json", "next-tag", "-r", str(repo), "--post"]) == 0
+        data = json.loads(capsys.readouterr().out)
+        assert main(["-f", "rich", "next-tag", "-r", str(repo), "--post"]) == 0
+        rich = flat(capsys.readouterr().out)
+    assert data["tag"] == "v2026.4.2.post2"
+    assert data["reason"] == "next_postrelease"
+    assert data["latest_tag"] == "v2026.04.2.post1"
+    assert (data["is_prerelease"], data["channel"]) == (False, None)
+    assert "Next post-release" in rich
+
+
+def test_next_tag_post_works_when_patch_is_off(
+    make_git_project: Callable[..., Path], capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Allow a post-release where a second final release is refused."""
+    project = make_git_project("[tool.calver-scm]\npatch = false\n", tag="v2026.04.0")
+    with time_machine.travel(APRIL, tick=False):
+        assert main(["next-tag", "--root", str(project), "--post"]) == 0
+    assert capsys.readouterr().out == "v2026.4.0.post1\n"
+
+
+def test_next_tag_post_without_a_release_exits_3(
+    repo: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Exit 3 in a period with no release."""
+    with time_machine.travel(dt.datetime(2026, 5, 2, 12, tzinfo=dt.UTC), tick=False):
+        assert main(["next-tag", "--root", str(repo), "--post"]) == 3
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err.endswith("[no_release]\n")
+
+
+@pytest.mark.parametrize("other", [["--pre", "rc"], ["--promote"]])
+def test_next_tag_post_cannot_be_combined(
+    repo: Path, capsys: pytest.CaptureFixture[str], other: list[str]
+) -> None:
+    """Reject combining the planning modes."""
+    assert main(["next-tag", "--root", str(repo), "--post", *other]) == 2
+    assert "cannot be combined" in capsys.readouterr().err
