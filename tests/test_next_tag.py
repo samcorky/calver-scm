@@ -132,3 +132,34 @@ def test_next_tag_outside_a_repository_exits_2(
     """Report that the tags could not be listed."""
     assert main(["next-tag", "--root", str(tmp_path)]) == 2
     assert capsys.readouterr().err.startswith("error: Could not list Git tags")
+
+
+@pytest.mark.parametrize("flag", ["--date", "-d"])
+def test_next_tag_date_overrides_today(
+    repo: Path, capsys: pytest.CaptureFixture[str], flag: str
+) -> None:
+    """Plan for the given date instead of the clock, so a new period restarts at 0."""
+    with time_machine.travel(APRIL, tick=False):
+        assert main(["next-tag", "--root", str(repo), flag, "2026-05-03"]) == 0
+    assert capsys.readouterr().out == "v2026.5.0\n"
+
+
+def test_next_tag_date_in_a_past_period_continues_that_period(
+    repo: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Number against the tags of the period containing the date."""
+    with time_machine.travel(APRIL, tick=False):
+        assert main(["next-tag", "-r", str(repo), "-d", "2026-03-01"]) == 0
+    assert capsys.readouterr().out == "v2026.3.10\n"
+
+
+@pytest.mark.parametrize("value", ["2026-13-01", "yesterday", "2026/04/15"])
+def test_next_tag_malformed_date_is_a_usage_error(
+    repo: Path, capsys: pytest.CaptureFixture[str], value: str
+) -> None:
+    """Reject anything that is not an ISO calendar date, naming the bad value."""
+    assert main(["next-tag", "--root", str(repo), "--date", value]) == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert value in captured.err
+    assert "Unknown option" not in captured.err

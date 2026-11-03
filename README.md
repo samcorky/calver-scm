@@ -528,9 +528,12 @@ Runs independent checks and carries on past failures: whether the build configur
 
 ```bash
 git tag "$(calver-scm next-tag)"     # prints e.g. v2026.4.3
+calver-scm next-tag --date 2026-05-03  # plan for another date: v2026.5.0
 ```
 
 `next-tag` is read-only: it proposes a tag and never creates or pushes one. It looks at every local tag, not only those reachable from HEAD, so a number used on another branch is not reused. Pre-releases and dev releases occupy no number, post-releases do, and tags that do not fit the scheme are ignored. It honours `tag_prefix`, `stable` and the timezone. With `patch = false` it refuses a second release in the same period. It also refuses a shallow clone, because the tag list cannot be trusted. Tags that exist only on the remote and have not been fetched cannot be seen, so run `git fetch --tags` first.
+
+`--date YYYY-MM-DD` (`-d`) plans for that calendar date instead of today, which is useful for backfilling and for testing. The configured timezone does not apply to it, and anything that is not an ISO date is a usage error (exit code `2`).
 
 The `reason` is one of:
 
@@ -554,6 +557,16 @@ The `reason` is one of:
 
 Use `version` to see what a build will be called, and `next-tag` to decide what to tag.
 
+### Short flags
+
+| Flag | Short | Applies to |
+| --- | --- | --- |
+| `--root` | `-r` | every command |
+| `--tag` | `-t` | `validate` |
+| `--date` | `-d` | `next-tag` |
+| `--format` | `-f` | every command |
+| `--json` | `-j` | every command |
+
 ### Output formats
 
 Pick how results are written with the global `--format` option, before or after the command:
@@ -563,7 +576,7 @@ Pick how results are written with the global `--format` option, before or after 
 | `auto` (default) | `rich` when stdout is a terminal, otherwise `plain` |
 | `rich` | Coloured, human-friendly output (honours `NO_COLOR`) |
 | `plain` | Unstyled text, one value per line, for scripts |
-| `json` | A single JSON object; `--json` is shorthand for `--format json` |
+| `json` | A single JSON object; `--json` (`-j`) is shorthand for `--format json` (`-f json`) |
 
 ```bash
 calver-scm version                    # rich in a terminal

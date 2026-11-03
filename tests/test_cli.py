@@ -543,3 +543,45 @@ def test_no_command_shows_the_help_and_succeeds(
     assert "Usage: calver-scm COMMAND" in out
     assert "Examples" in out
     assert captured.err == ""
+
+
+@pytest.mark.unit
+def test_short_root_flag_matches_long_form(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Accept -r wherever --root is accepted."""
+    assert main(["--json", "validate", "2026.4.2", "-r", str(tmp_path)]) == 0
+    short = capsys.readouterr().out
+    assert main(["--json", "validate", "2026.4.2", "--root", str(tmp_path)]) == 0
+    assert short == capsys.readouterr().out
+
+
+@pytest.mark.unit
+def test_short_tag_flag_matches_long_form(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Accept -t as --tag on validate."""
+    assert main(["validate", "v2026.4.2", "-t", "-r", str(tmp_path)]) == 0
+    capsys.readouterr()
+    assert main(["validate", "2026.4.2", "-t", "-r", str(tmp_path)]) == 1
+    assert "missing_tag_prefix" in capsys.readouterr().out
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("position", ["before", "after"])
+@pytest.mark.parametrize(
+    "short",
+    [["-j"], ["-f", "json"]],
+    ids=["-j", "-f"],
+)
+def test_short_output_flags_match_long_forms(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    short: list[str],
+    position: str,
+) -> None:
+    """Accept -j and -f on either side of the command, like --json and --format."""
+    command = ["validate", "2026.4.2", "-r", str(tmp_path)]
+    argv = [*short, *command] if position == "before" else [*command, *short]
+    assert main(argv) == 0
+    assert json.loads(capsys.readouterr().out)["valid"] is True
