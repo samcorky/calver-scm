@@ -207,3 +207,17 @@ def commits_since(project: Path, tag: str) -> int | None:
             f"{(ancestor.stderr or count.stderr).strip()}"
         )
     return int(count.stdout)
+
+
+def list_head_tags(project: Path) -> list[str]:
+    """Return the tags that point at HEAD of the repository containing `project`."""
+    result = subprocess.run(
+        ["git", "tag", "--points-at", "HEAD"],
+        cwd=project,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise ResolutionError(f"Could not list tags at HEAD: {result.stderr.strip()}")
+    return result.stdout.splitlines()

@@ -14,6 +14,7 @@ from calver_scm.cli_support import (
     commits_since,
     explain_build_version,
     is_shallow_repository,
+    list_head_tags,
     list_local_tags,
     resolve_build_version,
 )
@@ -27,7 +28,7 @@ from calver_scm.release import (
     plan_next_tag,
 )
 from calver_scm.utils import _today_in_timezone
-from calver_scm.validation import validate_version
+from calver_scm.validation import validate_against_repo, validate_version
 
 EXIT_OK = 0
 EXIT_INVALID = 1
@@ -158,10 +159,12 @@ def version(
 ```
 calver-scm validate 2026.4.2
 calver-scm validate v2026.4.2 --tag   # also requires the configured tag prefix
+calver-scm validate "$GITHUB_REF_NAME" --tag --against-repo   # also check the repo
 calver-scm --json validate 2026.13.1
 ```
 
-**Exit codes:** `0` valid, `1` invalid, `2` the project configuration is unusable."""
+**Exit codes:** `0` valid, `1` invalid, `2` bad usage or the project configuration
+is unusable, `3` `--against-repo` on a shallow clone."""
 )
 def validate(
     version: str,
@@ -169,6 +172,10 @@ def validate(
     *,
     tag: Annotated[
         bool, cyclopts.Parameter(name=("--tag", "-t"), negative="", show_default=False)
+    ] = False,
+    against_repo: Annotated[
+        bool,
+        cyclopts.Parameter(name="--against-repo", negative="", show_default=False),
     ] = False,
     root: RootOption = Path(),
     output: OutputParameter,
@@ -185,15 +192,35 @@ def validate(
         The version to check, or the full Git tag when `--tag` is given.
     tag
         Treat the input as a Git tag that includes the configured tag prefix.
+    against_repo
+        Also compare the tag with the local tags, as next-tag reads them: it
+        must not exist yet, be in a past period, skip a patch number or be lower
+        than an existing release. A tag pointing at HEAD is the one being built,
+        so it does not count as existing. Needs `--tag` and a full clone.
     root
         Project directory whose `pyproject.toml` holds `[tool.calver-scm]`.
     """
+    if against_repo and not tag:
+        print("error: --against-repo needs --tag", file=sys.stderr)
+        return EXIT_RESOLUTION_ERROR
     try:
         config = _load_calver_config(root.resolve())
-    except RuntimeError as e:
+        result = validate_version(version, config, is_tag=tag)
+        if against_repo and result.valid:
+            _require_full_history(root)
+            result = validate_against_repo(
+                result,
+                config,
+                list_local_tags(root),
+                head_tags=list_head_tags(root),
+                today=_today_in_timezone(config.timezone),
+            )
+    except (RuntimeError, ResolutionError) as e:
         print(f"error: {e}", file=sys.stderr)
         return EXIT_RESOLUTION_ERROR
-    result = validate_version(version, config, is_tag=tag)
+    except NextTagError as e:
+        print(f"error: {e.message} [{e.code}]", file=sys.stderr)
+        return EXIT_TAG_UNAVAILABLE
     output.validation(result)
     return EXIT_OK if result.valid else EXIT_INVALID
 
@@ -345,12 +372,7 @@ def next_tag(
         return EXIT_RESOLUTION_ERROR
     try:
         config = _load_calver_config(root.resolve())
-        if is_shallow_repository(root):
-            raise NextTagError(
-                "shallow_checkout",
-                "this is a shallow clone, so existing tags cannot be trusted; "
-                "run 'git fetch --unshallow --tags'",
-            )
+        _require_full_history(root)
         plan = plan_next_tag(
             list_local_tags(root),
             config,
@@ -369,6 +391,16 @@ def next_tag(
         return EXIT_TAG_UNAVAILABLE
     output.next_tag(plan)
     return EXIT_OK
+
+
+def _require_full_history(root: Path) -> None:
+    """Refuse a shallow clone, whose tag list cannot be trusted."""
+    if is_shallow_repository(root):
+        raise NextTagError(
+            "shallow_checkout",
+            "this is a shallow clone, so existing tags cannot be trusted; "
+            "run 'git fetch --unshallow --tags'",
+        )
 
 
 def _check_promotion(root: Path, prerelease: str) -> None:

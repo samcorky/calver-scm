@@ -493,10 +493,13 @@ calver-scm version --json           # {"version": "2026.4.3.dev3+g1a2b3c4"}
 ```bash
 calver-scm validate 2026.4.2                 # valid: 2026.4.2
 calver-scm validate v2026.4.2 --tag          # check a Git tag, including its prefix
+calver-scm validate "$GITHUB_REF_NAME" --tag --against-repo   # also check it against the repo
 calver-scm validate 2026.13.1 --json         # {"valid": false, "input": ..., "errors": [...]}
 ```
 
 `validate` checks that a version is valid PEP 440 and fits your configured scheme: the number of date components, calendar ranges (month 1-12, real days of the month, week 1-53), the `stable` setting's `0.` prefix and, with `--tag`, the `tag_prefix`. Pre-release, post-release, dev and local suffixes are accepted. It reads `[tool.calver-scm]` (and `CALVER_SCM_*` overrides) from `--root` but needs no Git checkout. Week 53 is accepted in any year because `YYYY.WW` takes its year from the calendar date, not the ISO week-year.
+
+`--against-repo` (with `--tag`) also reads the local tags, as `next-tag` does, so `validate` can say whether the tag makes sense in this repository and not only whether it is well-formed. It judges the tag as a new release among the existing tags, on any branch, and every finding is an error (exit code `1`), because the point is a release CI gate. A tag pointing at HEAD is the one being built, so on a tag-push build it does not count as already existing. Post-releases are only checked for existence and period, since they legitimately follow an older release. Without the flag `validate` is unchanged and needs no checkout. With it, a shallow clone exits `3`, as for `next-tag`, because the tag list cannot be trusted. Rerunning a build for an old release tag fails the later-release checks, as the tag is judged as a new one.
 
 ### Explaining a version
 
@@ -577,6 +580,7 @@ Use `version` to see what a build will be called, and `next-tag` to decide what 
 | --- | --- | --- |
 | `--root` | `-r` | every command |
 | `--tag` | `-t` | `validate` |
+| `--against-repo` | none | `validate` |
 | `--date` | `-d` | `next-tag` |
 | `--pre` | none | `next-tag` |
 | `--promote` | none | `next-tag` |
@@ -610,7 +614,7 @@ Piping or redirecting therefore always gives plain text without needing a flag. 
 | `0` | Success. For `validate`, the input is valid. For `doctor`, no errors (warnings are allowed). |
 | `1` | `validate`: the input is invalid. `doctor`: errors were found. |
 | `2` | Invalid usage, invalid configuration, or the version could not be resolved. |
-| `3` | `next-tag`: no safe tag can be proposed (a shallow clone, `patch = false` with the period already released, `--promote` with nothing to promote, or `--post` with no release in the period). |
+| `3` | `validate --against-repo`: a shallow clone. `next-tag`: no safe tag can be proposed (a shallow clone, `patch = false` with the period already released, `--promote` with nothing to promote, or `--post` with no release in the period). |
 
 ### Errors and invalid configuration
 
@@ -664,6 +668,10 @@ Errors are always plain text on stderr, whatever the format, and leave stdout em
 | `unexpected_stability_prefix` | `stable = true`, but the release starts with `0.`. |
 | `invalid_release_shape` | The wrong number of components for your scheme. |
 | `invalid_year`, `invalid_month`, `invalid_week`, `invalid_day` | A date component is outside its calendar range. |
+| `tag_exists` | With `--against-repo`, the tag (or the same version spelled differently) already exists and is not the tag at HEAD. |
+| `past_period` | With `--against-repo`, the tag belongs to an earlier period than the current one. |
+| `skipped_patch` | With `--against-repo`, the patch is beyond the one `next-tag` would use for a final or pre-release tag. |
+| `lower_than_existing` | With `--against-repo`, a final tag is lower than an existing final tag. |
 
 #### `doctor` check codes
 

@@ -8,9 +8,18 @@ from typing import TYPE_CHECKING
 from packaging.version import InvalidVersion
 
 from calver_scm.calver_version import CalverVersion
-from calver_scm.parser import _has_misplaced_stability_prefix
+from calver_scm.parser import (
+    _has_misplaced_stability_prefix,
+    _parse_tag,
+    _release_components,
+)
+from calver_scm.release import NextTagError, plan_next_tag
+from calver_scm.utils import _date_parts, _format_date_parts
 
 if TYPE_CHECKING:
+    import datetime
+    from collections.abc import Collection, Iterable
+
     from calver_scm.config import CalverConfig
 
 MAX_YEAR = 9999
@@ -29,6 +38,10 @@ class IssueCode(StrEnum):
     INVALID_MONTH = "invalid_month"
     INVALID_WEEK = "invalid_week"
     INVALID_DAY = "invalid_day"
+    TAG_EXISTS = "tag_exists"
+    PAST_PERIOD = "past_period"
+    SKIPPED_PATCH = "skipped_patch"
+    LOWER_THAN_EXISTING = "lower_than_existing"
 
 
 @dataclass(frozen=True, slots=True)
@@ -110,6 +123,109 @@ def validate_version(
     return ValidationResult(
         text, tuple(_calendar_issues(tokens, release[: len(tokens)]))
     )
+
+
+def validate_against_repo(
+    result: ValidationResult,
+    config: CalverConfig,
+    tags: Iterable[str],
+    *,
+    head_tags: Collection[str],
+    today: datetime.date,
+) -> ValidationResult:
+    """Add the repository checks to a result for a tag; no I/O.
+
+    Judges the tag as a new release in the given tags, so it answers whether
+    the tag makes sense here, not only whether it is well-formed. A result that
+    already has issues is returned unchanged, as there is nothing sound to
+    compare.
+
+    A tag in `head_tags` is the one being built, so it does not count as
+    already existing and is left out of the comparison. Every other tag, on
+    any branch, is compared with. Post-releases are only checked for existence
+    and period, as they legitimately follow an older release.
+    """
+    if not result.valid:
+        return result
+    tag = result.input
+    parsed = _parse_tag(tag, config)
+    components = None if parsed is None else _release_components(parsed, config)
+    assert parsed is not None
+    assert components is not None
+    period_parts, patch = components
+
+    known = sorted(set(tags))
+    building = tag in head_tags  # a tag-push build: the tag exists by design
+    taken = [
+        t
+        for t in known
+        if (t == tag or _parse_tag(t, config) == parsed) and not (t == tag and building)
+    ]
+    others = [t for t in known if not (building and t == tag)]
+    issues: list[ValidationIssue] = []
+    if taken:
+        issues.append(
+            ValidationIssue(IssueCode.TAG_EXISTS, f"Tag {taken[0]} already exists")
+        )
+
+    current = _date_parts(today, config)
+    if period_parts < current:
+        issues.append(
+            ValidationIssue(
+                IssueCode.PAST_PERIOD,
+                f"Tag is in period {_format_date_parts(period_parts)} but the "
+                f"current period is {_format_date_parts(current)}",
+            )
+        )
+    elif period_parts == current and parsed.post is None and parsed.dev is None:
+        issues.extend(_skipped_patch(others, config, today, patch))
+
+    if _is_final(parsed):
+        issues.extend(_lower_than_existing(others, config, parsed))
+    return ValidationResult(tag, (*result.issues, *issues))
+
+
+def _is_final(version: CalverVersion) -> bool:
+    return version.pre is None and version.post is None and version.dev is None
+
+
+def _skipped_patch(
+    others: list[str], config: CalverConfig, today: datetime.date, patch: int
+) -> list[ValidationIssue]:
+    """Flag a patch beyond the one `next-tag` would use for a final or candidate."""
+    try:
+        expected = plan_next_tag(others, config, today=today)
+    except NextTagError:
+        return []  # patch = false and already released: nothing to number against
+    if patch <= expected.patch:
+        return []
+    return [
+        ValidationIssue(
+            IssueCode.SKIPPED_PATCH,
+            f"Patch {patch} skips ahead; next-tag would propose {expected.tag}",
+        )
+    ]
+
+
+def _lower_than_existing(
+    others: list[str], config: CalverConfig, parsed: CalverVersion
+) -> list[ValidationIssue]:
+    """Flag a final tag that sorts below an existing final tag."""
+    higher = [
+        (version, t)
+        for t in others
+        if (version := _parse_tag(t, config)) is not None
+        and _is_final(version)
+        and version > parsed
+    ]
+    if not higher:
+        return []
+    return [
+        ValidationIssue(
+            IssueCode.LOWER_THAN_EXISTING,
+            f"Tag is lower than the existing release {max(higher)[1]}",
+        )
+    ]
 
 
 def _invalid(text: str, code: IssueCode, message: str) -> ValidationResult:
