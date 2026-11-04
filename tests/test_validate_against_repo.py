@@ -131,6 +131,28 @@ def test_validate_against_repo_keeps_the_syntax_result_type() -> None:
     assert result.input == "v2026.4.0"
 
 
+@pytest.mark.unit
+def test_validate_against_repo_keeps_the_kind_only_while_valid() -> None:
+    """Report the kind of a tag that passes, and none for one the repo refuses."""
+    ok = validate_against_repo(
+        validate_version("v2026.4.0rc1", MONTH, is_tag=True),
+        MONTH,
+        [],
+        head_tags=(),
+        today=APR,
+    )
+    assert ok.is_prerelease is True
+    taken = validate_against_repo(
+        validate_version("v2026.4.0rc1", MONTH, is_tag=True),
+        MONTH,
+        ["v2026.4.0rc1"],
+        head_tags=(),
+        today=APR,
+    )
+    assert not taken.valid
+    assert taken.kind is None
+
+
 NOW = dt.datetime(2026, 4, 15, 12, tzinfo=dt.UTC)
 
 

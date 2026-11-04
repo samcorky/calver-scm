@@ -171,7 +171,7 @@ def _github_entry(key: str, value: str) -> str:
 
 
 def _validation_payload(result: ValidationResult) -> Payload:
-    return {
+    payload: Payload = {
         "valid": result.valid,
         "input": result.input,
         "errors": [
@@ -179,6 +179,10 @@ def _validation_payload(result: ValidationResult) -> Payload:
             for issue in result.issues
         ],
     }
+    if result.kind is not None:
+        payload["kind"] = result.kind.value
+        payload["is_prerelease"] = result.is_prerelease
+    return payload
 
 
 def _validation_plain(payload: Payload) -> list[str]:

@@ -162,6 +162,22 @@ def test_validate_json_reports_errors_on_stdout(
 
 
 @pytest.mark.unit
+def test_validate_json_reports_the_kind_of_a_valid_version(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Say whether a valid version is a pre-release, for callers that publish it."""
+    root = _project_config(tmp_path, 'mode = "month"')
+    assert main(["validate", "2026.4.2rc1", "--json", "--root", str(root)]) == 0
+    assert json.loads(capsys.readouterr().out) == {
+        "valid": True,
+        "input": "2026.4.2rc1",
+        "errors": [],
+        "kind": "prerelease",
+        "is_prerelease": True,
+    }
+
+
+@pytest.mark.unit
 def test_validate_tag_uses_the_configured_prefix(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -247,6 +263,8 @@ def test_json_shorthand_and_format_json_agree(
         "valid": True,
         "input": "2026.4.2",
         "errors": [],
+        "kind": "final",
+        "is_prerelease": False,
     }
 
 

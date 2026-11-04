@@ -13,7 +13,7 @@ from calver_scm.parser import (
     _parse_tag,
     _release_components,
 )
-from calver_scm.release import NextTagError, plan_next_tag
+from calver_scm.release import NextTagError, TagKind, plan_next_tag, version_kind
 from calver_scm.utils import _date_parts, _format_date_parts
 
 if TYPE_CHECKING:
@@ -58,11 +58,20 @@ class ValidationResult:
 
     input: str
     issues: tuple[ValidationIssue, ...]
+    kind: TagKind | None = None
+    """How the version is treated when numbering releases; only set when valid."""
 
     @property
     def valid(self) -> bool:
         """Whether the input satisfies the syntax and the CalVer policy."""
         return not self.issues
+
+    @property
+    def is_prerelease(self) -> bool | None:
+        """Whether a valid input is a pre-release or dev release; None if invalid."""
+        if self.kind is None:
+            return None
+        return self.kind in (TagKind.PRERELEASE, TagKind.DEV)
 
 
 def validate_version(
@@ -120,9 +129,8 @@ def validate_version(
             f"optional patch, got {len(release)} release components",
         )
 
-    return ValidationResult(
-        text, tuple(_calendar_issues(tokens, release[: len(tokens)]))
-    )
+    issues = tuple(_calendar_issues(tokens, release[: len(tokens)]))
+    return ValidationResult(text, issues, None if issues else version_kind(version))
 
 
 def validate_against_repo(
@@ -182,7 +190,8 @@ def validate_against_repo(
 
     if _is_final(parsed):
         issues.extend(_lower_than_existing(others, config, parsed))
-    return ValidationResult(tag, (*result.issues, *issues))
+    all_issues = (*result.issues, *issues)
+    return ValidationResult(tag, all_issues, None if all_issues else result.kind)
 
 
 def _is_final(version: CalverVersion) -> bool:

@@ -497,7 +497,7 @@ calver-scm validate "$GITHUB_REF_NAME" --tag --against-repo   # also check it ag
 calver-scm validate 2026.13.1 --json         # {"valid": false, "input": ..., "errors": [...]}
 ```
 
-`validate` checks that a version is valid PEP 440 and fits your configured scheme: the number of date components, calendar ranges (month 1-12, real days of the month, week 1-53), the `stable` setting's `0.` prefix and, with `--tag`, the `tag_prefix`. Pre-release, post-release, dev and local suffixes are accepted. It reads `[tool.calver-scm]` (and `CALVER_SCM_*` overrides) from `--root` but needs no Git checkout. Week 53 is accepted in any year because `YYYY.WW` takes its year from the calendar date, not the ISO week-year.
+`validate` checks that a version is valid PEP 440 and fits your configured scheme: the number of date components, calendar ranges (month 1-12, real days of the month, week 1-53), the `stable` setting's `0.` prefix and, with `--tag`, the `tag_prefix`. Pre-release, post-release, dev and local suffixes are accepted. A valid input also reports its `kind` (`final`, `prerelease`, `postrelease` or `dev`, as `tags` does) and `is_prerelease`, which is true for pre-release and dev versions, so a release step can set its pre-release flag from the tag alone. It reads `[tool.calver-scm]` (and `CALVER_SCM_*` overrides) from `--root` but needs no Git checkout. Week 53 is accepted in any year because `YYYY.WW` takes its year from the calendar date, not the ISO week-year.
 
 `--against-repo` (with `--tag`) also reads the local tags, as `next-tag` does, so `validate` can say whether the tag makes sense in this repository and not only whether it is well-formed. It judges the tag as a new release among the existing tags, on any branch, and every finding is an error (exit code `1`), because the point is a release CI gate. A tag pointing at HEAD is the one being built, so on a tag-push build it does not count as already existing. Post-releases are only checked for existence and period, since they legitimately follow an older release. Without the flag `validate` is unchanged and needs no checkout. With it, a shallow clone exits `3`, as for `next-tag`, because the tag list cannot be trusted. Rerunning a build for an old release tag fails the later-release checks, as the tag is judged as a new one.
 
@@ -630,7 +630,7 @@ Piping or redirecting therefore always gives plain text without needing a flag. 
 
 #### GitHub Actions
 
-`--format github` appends each top-level scalar value of the result to the file named by `$GITHUB_OUTPUT`, so later steps can read it as `steps.<id>.outputs.<name>`, with no parsing or hand-written `echo >> "$GITHUB_OUTPUT"`. It works with `version`, `next-tag` and `validate`; `explain`, `doctor` and `tags` have nested results and exit `2`. Booleans are `true` or `false`, a missing value is empty, and a value spanning lines is written between a random delimiter so it cannot inject another output. The plain form is still printed so the step log shows the result. Outside Actions, with `GITHUB_OUTPUT` unset or empty, it exits `2` before doing any work. For `validate` the outputs are `valid` and `input`, and an invalid input still writes them before exiting `1`.
+`--format github` appends each top-level scalar value of the result to the file named by `$GITHUB_OUTPUT`, so later steps can read it as `steps.<id>.outputs.<name>`, with no parsing or hand-written `echo >> "$GITHUB_OUTPUT"`. It works with `version`, `next-tag` and `validate`; `explain`, `doctor` and `tags` have nested results and exit `2`. Booleans are `true` or `false`, a missing value is empty, and a value spanning lines is written between a random delimiter so it cannot inject another output. The plain form is still printed so the step log shows the result. Outside Actions, with `GITHUB_OUTPUT` unset or empty, it exits `2` before doing any work. For `validate` the outputs are `valid` and `input`, plus `kind` and `is_prerelease` when the input is valid, and an invalid input still writes `valid` and `input` before exiting `1`.
 
 `next-tag` writes `tag`, `version`, `patch`, `reason`, `latest_tag`, `is_prerelease` and `channel`. An example release workflow that plans the tag, then tags and publishes it, marking pre-releases:
 
@@ -701,6 +701,8 @@ Errors are always plain text on stderr, whatever the format, and leave stdout em
 // validate (exit code 1 when "valid" is false)
 {"valid": false, "input": "2026.13.1",
  "errors": [{"code": "invalid_month", "message": "Month must be between 1 and 12, got 13"}]}
+// validate, valid input: kind is final, prerelease, postrelease or dev
+{"valid": true, "input": "2026.4.2rc1", "errors": [], "kind": "prerelease", "is_prerelease": true}
 
 // tags
 {"tags": [{"tag": "v2026.4.3rc1", "kind": "prerelease", "period": "2026.4", "patch": 3,

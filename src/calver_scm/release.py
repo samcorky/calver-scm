@@ -230,6 +230,17 @@ class TagKind(StrEnum):
     IGNORED = "ignored"
 
 
+def version_kind(version: CalverVersion) -> TagKind:
+    """Say how a parsed version is treated when numbering releases."""
+    if version.dev is not None:
+        return TagKind.DEV
+    if version.pre is not None:
+        return TagKind.PRERELEASE
+    if version.post is not None:
+        return TagKind.POSTRELEASE
+    return TagKind.FINAL
+
+
 @dataclass(frozen=True, slots=True)
 class TagInfo:
     """How one tag reads under the configured scheme.
@@ -268,16 +279,12 @@ def classify_tags(tags: Iterable[str], config: CalverConfig) -> list[TagInfo]:
         if version is None or components is None:
             ignored.append(TagInfo(tag, TagKind.IGNORED, None, None, reason))
             continue
-        if version.dev is not None:
-            kind = TagKind.DEV
-        elif version.pre is not None:
-            kind = TagKind.PRERELEASE
-        elif version.post is not None:
-            kind = TagKind.POSTRELEASE
-        else:
-            kind = TagKind.FINAL
         info = TagInfo(
-            tag, kind, _format_date_parts(components[0]), components[1], None
+            tag,
+            version_kind(version),
+            _format_date_parts(components[0]),
+            components[1],
+            None,
         )
         parsed_tags.append(((components[0], version), info))
     parsed_tags.sort(key=lambda item: item[0])
