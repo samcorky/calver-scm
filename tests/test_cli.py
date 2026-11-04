@@ -174,6 +174,12 @@ def test_validate_json_reports_the_kind_of_a_valid_version(
         "errors": [],
         "kind": "prerelease",
         "is_prerelease": True,
+        "period": "2026.4",
+        "date": {"YYYY": 2026, "MM": 4},
+        "patch": 2,
+        "pre": "rc1",
+        "post": None,
+        "dev": None,
     }
 
 
@@ -265,6 +271,12 @@ def test_json_shorthand_and_format_json_agree(
         "errors": [],
         "kind": "final",
         "is_prerelease": False,
+        "period": "2026.4",
+        "date": {"YYYY": 2026, "MM": 4},
+        "patch": 2,
+        "pre": None,
+        "post": None,
+        "dev": None,
     }
 
 
@@ -603,3 +615,78 @@ def test_short_output_flags_match_long_forms(
     argv = [*short, *command] if position == "before" else [*command, *short]
     assert main(argv) == 0
     assert json.loads(capsys.readouterr().out)["valid"] is True
+
+
+@pytest.mark.unit
+def test_parse_json_reports_the_parts_of_a_tag(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Give a script the parts of a tag without re-parsing it against the scheme."""
+    root = _project_config(tmp_path, 'mode = "month"\nstable = false')
+    argv = ["--json", "parse", "v0.2026.11.0.post1", "--tag", "--root", str(root)]
+    assert main(argv) == 0
+    assert json.loads(capsys.readouterr().out) == {
+        "valid": True,
+        "input": "v0.2026.11.0.post1",
+        "errors": [],
+        "kind": "postrelease",
+        "is_prerelease": False,
+        "period": "2026.11",
+        "date": {"YYYY": 2026, "MM": 11},
+        "patch": 0,
+        "pre": None,
+        "post": 1,
+        "dev": None,
+    }
+
+
+@pytest.mark.unit
+def test_parse_plain_prints_a_line_per_part(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Print tab-separated parts, with an empty value for a part that is absent."""
+    root = _project_config(tmp_path, 'mode = "month"')
+    assert main(["parse", "2026.4.2rc1", "--root", str(root)]) == 0
+    assert capsys.readouterr().out.splitlines() == [
+        "kind\tprerelease",
+        "period\t2026.4",
+        "date.YYYY\t2026",
+        "date.MM\t4",
+        "patch\t2",
+        "pre\trc1",
+        "post\t",
+        "dev\t",
+    ]
+
+
+@pytest.mark.unit
+def test_parse_rich_shows_a_table(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Render the parts in a panel titled with the input."""
+    root = _project_config(tmp_path, 'mode = "month"')
+    assert main(["--format", "rich", "parse", "2026.4.2", "--root", str(root)]) == 0
+    out = capsys.readouterr().out
+    assert "2026.4.2" in out
+    assert "date.YYYY" in out
+    assert "2026" in out
+
+
+@pytest.mark.unit
+def test_parse_reports_an_invalid_input_like_validate(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Print the findings and exit 1, so a script stops on a bad tag."""
+    root = _project_config(tmp_path, 'mode = "month"')
+    assert main(["parse", "2026.13.1", "--root", str(root)]) == 1
+    assert capsys.readouterr().out.startswith("invalid: 2026.13.1")
+
+
+@pytest.mark.unit
+def test_parse_fails_on_an_unusable_configuration(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Exit 2 with the reason, as validate does."""
+    root = _project_config(tmp_path, 'mode = "fortnight"')
+    assert main(["parse", "2026.4.2", "--root", str(root)]) == 2
+    assert capsys.readouterr().err.startswith("error:")

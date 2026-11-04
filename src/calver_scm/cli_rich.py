@@ -215,6 +215,27 @@ TAG_KIND_STYLES = {
 }
 
 
+def render_parsed(payload: Payload) -> None:
+    """Show the parts of a valid version as a table."""
+    rows = [("kind", payload["kind"]), ("period", payload["period"])]
+    rows.extend((f"date.{token}", n) for token, n in payload["date"].items())
+    rows.extend((key, payload[key]) for key in ("patch", "pre", "post", "dev"))
+    table = Table(box=box.ROUNDED, show_header=False, expand=False)
+    table.add_column(style="bold", no_wrap=True)
+    table.add_column()
+    for name, value in rows:
+        table.add_row(name, Text("-", style="dim") if value is None else str(value))
+    console().print(
+        Panel.fit(
+            table,
+            title=payload["input"],
+            border_style="green",
+            box=box.ROUNDED,
+            padding=(0, 1),
+        )
+    )
+
+
 def render_tags(payload: Payload) -> None:
     """Show every tag with how it is read, and why ignored tags are skipped."""
     if not payload["tags"]:

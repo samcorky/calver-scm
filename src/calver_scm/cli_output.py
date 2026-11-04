@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any
 from calver_scm.cli_rich import (
     render_explanation,
     render_next_tag,
+    render_parsed,
     render_report,
     render_tags,
     render_validation,
@@ -110,6 +111,14 @@ class Output:
         payload = _validation_payload(result)
         self._emit(payload, "\n".join(_validation_plain(payload)), render_validation)
 
+    def parsed(self, result: ValidationResult) -> None:
+        """Write the parts of a valid version, or the findings for an invalid one."""
+        if not result.valid:
+            self.validation(result)
+            return
+        payload = _validation_payload(result)
+        self._emit(payload, "\n".join(_parsed_plain(payload)), render_parsed)
+
     def _emit(
         self, payload: Payload, plain: str, rich: Callable[[Payload], None]
     ) -> None:
@@ -182,7 +191,27 @@ def _validation_payload(result: ValidationResult) -> Payload:
     if result.kind is not None:
         payload["kind"] = result.kind.value
         payload["is_prerelease"] = result.is_prerelease
+    if result.parts is not None:
+        parts = result.parts
+        payload["period"] = parts.period
+        payload["date"] = dict(parts.date)
+        payload["patch"] = parts.patch
+        payload["pre"] = parts.pre
+        payload["post"] = parts.post
+        payload["dev"] = parts.dev
     return payload
+
+
+def _parsed_plain(payload: Payload) -> list[str]:
+    """One tab-separated line per part; a part the version lacks is empty."""
+
+    def line(name: str, value: object) -> str:
+        return f"{name}\t{'' if value is None else value}"
+
+    lines = [line("kind", payload["kind"]), line("period", payload["period"])]
+    lines.extend(line(f"date.{token}", n) for token, n in payload["date"].items())
+    lines.extend(line(key, payload[key]) for key in ("patch", "pre", "post", "dev"))
+    return lines
 
 
 def _validation_plain(payload: Payload) -> list[str]:

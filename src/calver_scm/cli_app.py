@@ -66,6 +66,7 @@ calver-scm doctor                     # check the setup for problems
 calver-scm next-tag                   # the next release tag (read-only)
 calver-scm tags                       # how each local tag is read
 calver-scm validate v2026.4.2 --tag   # check a tag against your scheme
+calver-scm parse v2026.4.2 --tag      # split a tag into its parts
 calver-scm --json version             # machine-readable output
 ```
 
@@ -74,7 +75,7 @@ calver-scm --json version             # machine-readable output
 | Code | Meaning |
 |---|---|
 | `0` | Success. |
-| `1` | `validate`: the input is invalid. `doctor`: errors were found. |
+| `1` | `validate` and `parse`: the input is invalid. `doctor`: errors were found. |
 | `2` | Bad usage, invalid configuration, or the version could not be resolved. |
 | `3` | `next-tag`: no safe tag can be proposed. |
 
@@ -119,7 +120,7 @@ def launcher(
     output_format
         How to print the result: auto (rich on a terminal, otherwise plain),
         rich, plain (stable, for scripts), json, or github (append the result
-        to `$GITHUB_OUTPUT` for `version`, `next-tag` and `validate`).
+        to `$GITHUB_OUTPUT` for `version`, `next-tag`, `validate` and `parse`).
     as_json
         Same as `--format json`.
     """
@@ -132,7 +133,7 @@ def launcher(
             print(
                 f"error: --format github is not supported by "
                 f"{command.__name__.replace('_', '-')}; use it with version, "
-                "next-tag or validate",
+                "next-tag, validate or parse",
                 file=sys.stderr,
             )
             return EXIT_RESOLUTION_ERROR
@@ -257,6 +258,57 @@ def validate(
         print(f"error: {e.message} [{e.code}]", file=sys.stderr)
         return EXIT_TAG_UNAVAILABLE
     output.validation(result)
+    return EXIT_OK if result.valid else EXIT_INVALID
+
+
+@app.command(
+    help_epilogue="""\
+**Examples**
+
+```
+calver-scm parse v2026.4.2 --tag
+calver-scm --json parse v0.2026.11.0.post1 --tag
+calver-scm --format github parse "$GITHUB_REF_NAME" --tag
+```
+
+Plain output has one tab-separated line per part: kind, period, one `date.<token>`
+line per date component, patch, pre, post and dev. A part the version lacks is empty.
+
+**Exit codes:** `0` parsed, `1` invalid, `2` bad usage or the project configuration
+is unusable."""
+)
+def parse(
+    version: str,
+    /,
+    *,
+    tag: Annotated[
+        bool, cyclopts.Parameter(name=("--tag", "-t"), negative="", show_default=False)
+    ] = False,
+    root: RootOption = Path(),
+    output: OutputParameter,
+) -> int:
+    """Split a version or Git tag into its parts under the project's scheme.
+
+    Applies the same checks as `validate`, then reports what the version is made
+    of, so a script need not re-parse a tag against the scheme. An invalid input
+    prints the same findings as `validate` and exits 1. Needs no Git checkout.
+
+    Parameters
+    ----------
+    version
+        The version to read, or the full Git tag when `--tag` is given.
+    tag
+        Treat the input as a Git tag that includes the configured tag prefix.
+    root
+        Project directory whose `pyproject.toml` holds `[tool.calver-scm]`.
+    """
+    try:
+        config = _load_calver_config(root.resolve())
+        result = validate_version(version, config, is_tag=tag)
+    except (RuntimeError, ResolutionError) as e:
+        print(f"error: {e}", file=sys.stderr)
+        return EXIT_RESOLUTION_ERROR
+    output.parsed(result)
     return EXIT_OK if result.valid else EXIT_INVALID
 
 
