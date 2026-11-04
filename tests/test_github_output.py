@@ -145,6 +145,23 @@ def test_validate_writes_the_verdict_even_when_invalid(
 
 
 @pytest.mark.e2e
+def test_validate_writes_the_kind_of_a_valid_tag(
+    tmp_path: Path, github_output: Path
+) -> None:
+    """Let a later step set the release's pre-release flag from the tag alone."""
+    assert (
+        main(["--format", "github", "validate", "2026.4.2rc1", "-r", str(tmp_path)])
+        == 0
+    )
+    assert github_output.read_text(encoding="utf-8").splitlines() == [
+        "valid=true",
+        "input=2026.4.2rc1",
+        "kind=prerelease",
+        "is_prerelease=true",
+    ]
+
+
+@pytest.mark.e2e
 def test_github_format_needs_github_output(
     repo: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:

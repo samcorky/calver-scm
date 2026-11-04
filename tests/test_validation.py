@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from calver_scm.config import CalverConfig, CalverMode
+from calver_scm.release import TagKind
 from calver_scm.validation import IssueCode, ValidationResult, validate_version
 
 pytestmark = pytest.mark.unit
@@ -108,3 +109,28 @@ def test_tag_mode_without_a_prefix_accepts_bare_versions() -> None:
 def test_plain_version_with_leading_v_is_accepted_per_pep_440() -> None:
     """PEP 440 allows a leading 'v', so plain mode does not insist on --tag."""
     assert validate_version("v2026.4.2", MONTH).valid
+
+
+@pytest.mark.parametrize(
+    ("text", "kind", "prerelease"),
+    [
+        ("2026.4.2", TagKind.FINAL, False),
+        ("2026.4.2rc1", TagKind.PRERELEASE, True),
+        ("2026.4.2a1", TagKind.PRERELEASE, True),
+        ("2026.4.2.post1", TagKind.POSTRELEASE, False),
+        ("2026.4.2.dev3", TagKind.DEV, True),
+    ],
+)
+def test_a_valid_version_reports_its_kind(
+    text: str, kind: TagKind, prerelease: bool
+) -> None:
+    result = validate_version(text, MONTH)
+    assert result.kind is kind
+    assert result.is_prerelease is prerelease
+
+
+@pytest.mark.parametrize("text", ["2026.13.1", "not-a-version", "2026.4.2.3.4"])
+def test_an_invalid_version_reports_no_kind(text: str) -> None:
+    result = validate_version(text, MONTH)
+    assert result.kind is None
+    assert result.is_prerelease is None
