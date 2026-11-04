@@ -271,8 +271,9 @@ calver-scm --json parse v0.2026.11.0.post1 --tag
 calver-scm --format github parse "$GITHUB_REF_NAME" --tag
 ```
 
-Plain output has one tab-separated line per part: kind, period, one `date.<token>`
-line per date component, patch, pre, post and dev. A part the version lacks is empty.
+Plain output has one tab-separated line per part: kind, version, period, one
+`date.<token>` line per date component, patch, pre, post, dev, stable and
+tag_prefix. A part the version lacks is empty.
 
 **Exit codes:** `0` parsed, `1` invalid, `2` bad usage or the project configuration
 is unusable."""

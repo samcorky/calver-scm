@@ -180,6 +180,9 @@ def test_validate_json_reports_the_kind_of_a_valid_version(
         "pre": "rc1",
         "post": None,
         "dev": None,
+        "version": "2026.4.2rc1",
+        "stable": True,
+        "tag_prefix": "",
     }
 
 
@@ -277,6 +280,9 @@ def test_json_shorthand_and_format_json_agree(
         "pre": None,
         "post": None,
         "dev": None,
+        "version": "2026.4.2",
+        "stable": True,
+        "tag_prefix": "",
     }
 
 
@@ -637,6 +643,9 @@ def test_parse_json_reports_the_parts_of_a_tag(
         "pre": None,
         "post": 1,
         "dev": None,
+        "version": "0.2026.11.0.post1",
+        "stable": False,
+        "tag_prefix": "v",
     }
 
 
@@ -649,6 +658,7 @@ def test_parse_plain_prints_a_line_per_part(
     assert main(["parse", "2026.4.2rc1", "--root", str(root)]) == 0
     assert capsys.readouterr().out.splitlines() == [
         "kind\tprerelease",
+        "version\t2026.4.2rc1",
         "period\t2026.4",
         "date.YYYY\t2026",
         "date.MM\t4",
@@ -656,6 +666,8 @@ def test_parse_plain_prints_a_line_per_part(
         "pre\trc1",
         "post\t",
         "dev\t",
+        "stable\ttrue",
+        "tag_prefix\t",
     ]
 
 

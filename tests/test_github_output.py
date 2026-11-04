@@ -163,6 +163,9 @@ def test_validate_writes_the_kind_of_a_valid_tag(
         "pre=rc1",
         "post=",
         "dev=",
+        "version=2026.4.2rc1",
+        "stable=true",
+        "tag_prefix=",
     ]
 
 
@@ -183,6 +186,9 @@ def test_parse_writes_the_parts_of_a_tag(tmp_path: Path, github_output: Path) ->
         "pre=",
         "post=1",
         "dev=",
+        "version=2026.4.2.post1",
+        "stable=true",
+        "tag_prefix=",
     ]
 
 
