@@ -217,9 +217,16 @@ TAG_KIND_STYLES = {
 
 def render_parsed(payload: Payload) -> None:
     """Show the parts of a valid version as a table."""
-    rows = [("kind", payload["kind"]), ("period", payload["period"])]
+    rows = [
+        ("kind", payload["kind"]),
+        ("version", payload["version"]),
+        ("period", payload["period"]),
+    ]
     rows.extend((f"date.{token}", n) for token, n in payload["date"].items())
-    rows.extend((key, payload[key]) for key in ("patch", "pre", "post", "dev"))
+    rows.extend(
+        (key, payload[key])
+        for key in ("patch", "pre", "post", "dev", "stable", "tag_prefix")
+    )
     table = Table(box=box.ROUNDED, show_header=False, expand=False)
     table.add_column(style="bold", no_wrap=True)
     table.add_column()

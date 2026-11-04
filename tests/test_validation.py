@@ -141,37 +141,96 @@ def test_an_invalid_version_reports_no_kind(text: str) -> None:
     assert result.is_prerelease is None
 
 
+TAGGED = CalverConfig(stable=False, tag_prefix="v")
+
+
 @pytest.mark.parametrize(
-    ("text", "config", "expected"),
+    ("text", "config", "is_tag", "expected"),
     [
         (
             "2026.4.2",
             MONTH,
-            VersionParts("2026.4", (("YYYY", 2026), ("MM", 4)), 2, None, None, None),
+            False,
+            VersionParts(
+                "2026.4",
+                (("YYYY", 2026), ("MM", 4)),
+                2,
+                None,
+                None,
+                None,
+                "2026.4.2",
+                True,
+                "",
+            ),
         ),
         (
-            "2026.4",
+            "2026.04",
             MONTH,
-            VersionParts("2026.4", (("YYYY", 2026), ("MM", 4)), 0, None, None, None),
+            False,
+            VersionParts(
+                "2026.4",
+                (("YYYY", 2026), ("MM", 4)),
+                0,
+                None,
+                None,
+                None,
+                "2026.4",
+                True,
+                "",
+            ),
         ),
         (
-            "0.2026.11.0.post1",
+            "v0.2026.11.0.post1",
+            TAGGED,
+            True,
+            VersionParts(
+                "2026.11",
+                (("YYYY", 2026), ("MM", 11)),
+                0,
+                None,
+                1,
+                None,
+                "0.2026.11.0.post1",
+                False,
+                "v",
+            ),
+        ),
+        (
+            "0.2026.11.0rc2",
             UNSTABLE,
-            VersionParts("2026.11", (("YYYY", 2026), ("MM", 11)), 0, None, 1, None),
-        ),
-        (
-            "2026.4.1rc2",
-            MONTH,
-            VersionParts("2026.4", (("YYYY", 2026), ("MM", 4)), 1, "rc2", None, None),
+            False,
+            VersionParts(
+                "2026.11",
+                (("YYYY", 2026), ("MM", 11)),
+                0,
+                "rc2",
+                None,
+                None,
+                "0.2026.11.0rc2",
+                False,
+                "",
+            ),
         ),
         (
             "2026.4.1.dev3",
             MONTH,
-            VersionParts("2026.4", (("YYYY", 2026), ("MM", 4)), 1, None, None, 3),
+            False,
+            VersionParts(
+                "2026.4",
+                (("YYYY", 2026), ("MM", 4)),
+                1,
+                None,
+                None,
+                3,
+                "2026.4.1.dev3",
+                True,
+                "",
+            ),
         ),
         (
             "2026.4.20.1",
             DAY,
+            False,
             VersionParts(
                 "2026.4.20",
                 (("YYYY", 2026), ("MM", 4), ("DD", 20)),
@@ -179,20 +238,34 @@ def test_an_invalid_version_reports_no_kind(text: str) -> None:
                 None,
                 None,
                 None,
+                "2026.4.20.1",
+                True,
+                "",
             ),
         ),
         (
             "2026.7",
             YEAR,
-            VersionParts("2026", (("YYYY", 2026),), 7, None, None, None),
+            False,
+            VersionParts(
+                "2026",
+                (("YYYY", 2026),),
+                7,
+                None,
+                None,
+                None,
+                "2026.7",
+                True,
+                "",
+            ),
         ),
     ],
 )
 def test_a_valid_version_reports_its_parts(
-    text: str, config: CalverConfig, expected: VersionParts
+    text: str, config: CalverConfig, is_tag: bool, expected: VersionParts
 ) -> None:
-    """Report the period, date parts, patch and suffixes of a valid version."""
-    assert validate_version(text, config).parts == expected
+    """Report the parts of a valid version, with the stability and tag prefix."""
+    assert validate_version(text, config, is_tag=is_tag).parts == expected
 
 
 @pytest.mark.parametrize("text", ["2026.13.1", "not-a-version", "2026.4.2.3.4"])

@@ -60,6 +60,10 @@ class VersionParts:
     `period` is the date part as rendered, without the `0.` of an unstable scheme.
     `patch` is 0 when the version has none. `pre` is the suffix as written
     (`rc1`); `post` and `dev` are their numbers.
+
+    `version` is the normalised version without the tag prefix, so it keeps the `0.`
+    of an unstable scheme. `stable` is the configured setting and `tag_prefix` the
+    prefix removed from the input, empty for a version that is not a tag.
     """
 
     period: str
@@ -68,6 +72,9 @@ class VersionParts:
     pre: str | None
     post: int | None
     dev: int | None
+    version: str
+    stable: bool
+    tag_prefix: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -105,6 +112,7 @@ def validate_version(
     week 53 can legitimately appear in years that have 52 ISO weeks.
     """
     candidate = text
+    tag_prefix = ""
     if is_tag and config.tag_prefix:
         if not text.startswith(config.tag_prefix):
             return _invalid(
@@ -113,6 +121,7 @@ def validate_version(
                 f"Tag must start with the configured prefix {config.tag_prefix!r}",
             )
         candidate = text.removeprefix(config.tag_prefix)
+        tag_prefix = config.tag_prefix
 
     try:
         version = CalverVersion(candidate)
@@ -153,7 +162,7 @@ def validate_version(
     if issues:
         return ValidationResult(text, issues)
     return ValidationResult(
-        text, issues, version_kind(version), _version_parts(version, config)
+        text, issues, version_kind(version), _version_parts(version, config, tag_prefix)
     )
 
 
@@ -220,7 +229,9 @@ def validate_against_repo(
     return ValidationResult(tag, all_issues, result.kind, result.parts)
 
 
-def _version_parts(version: CalverVersion, config: CalverConfig) -> VersionParts:
+def _version_parts(
+    version: CalverVersion, config: CalverConfig, tag_prefix: str
+) -> VersionParts:
     """Break a version already checked against the scheme into its components."""
     components = _release_components(version, config)
     assert components is not None  # the release shape was checked by the caller
@@ -233,6 +244,9 @@ def _version_parts(version: CalverVersion, config: CalverConfig) -> VersionParts
         pre,
         version.post,
         version.dev,
+        str(version),
+        config.stable,
+        tag_prefix,
     )
 
 

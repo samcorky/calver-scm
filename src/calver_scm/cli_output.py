@@ -199,18 +199,29 @@ def _validation_payload(result: ValidationResult) -> Payload:
         payload["pre"] = parts.pre
         payload["post"] = parts.post
         payload["dev"] = parts.dev
+        payload["version"] = parts.version
+        payload["stable"] = parts.stable
+        payload["tag_prefix"] = parts.tag_prefix
     return payload
+
+
+_PARSED_SCALARS = ("patch", "pre", "post", "dev", "stable", "tag_prefix")
 
 
 def _parsed_plain(payload: Payload) -> list[str]:
     """One tab-separated line per part; a part the version lacks is empty."""
 
     def line(name: str, value: object) -> str:
-        return f"{name}\t{'' if value is None else value}"
+        text = str(value).lower() if isinstance(value, bool) else value
+        return f"{name}\t{'' if value is None else text}"
 
-    lines = [line("kind", payload["kind"]), line("period", payload["period"])]
+    lines = [
+        line("kind", payload["kind"]),
+        line("version", payload["version"]),
+        line("period", payload["period"]),
+    ]
     lines.extend(line(f"date.{token}", n) for token, n in payload["date"].items())
-    lines.extend(line(key, payload[key]) for key in ("patch", "pre", "post", "dev"))
+    lines.extend(line(key, payload[key]) for key in _PARSED_SCALARS)
     return lines
 
 
