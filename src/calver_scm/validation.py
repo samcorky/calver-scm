@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import calendar
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import StrEnum
 from typing import TYPE_CHECKING
 
@@ -87,6 +87,9 @@ class ValidationResult:
     """How the version is treated when numbering releases; only set when valid."""
     parts: VersionParts | None = None
     """The components of the version; only set when valid."""
+    newest: dict[str, bool] | None = None
+    """Whether the version is the newest counted release in each scope; see
+    `newest_in_scopes`. Only set by a repository comparison."""
 
     @property
     def valid(self) -> bool:
@@ -227,6 +230,54 @@ def validate_against_repo(
     if all_issues:
         return ValidationResult(tag, all_issues)
     return ValidationResult(tag, all_issues, result.kind, result.parts)
+
+
+OVERALL_SCOPE = "all"
+_COUNTED = (TagKind.FINAL, TagKind.POSTRELEASE)
+
+
+def newest_in_scopes(
+    result: ValidationResult, config: CalverConfig, tags: Iterable[str]
+) -> ValidationResult:
+    """Say whether a valid tag is the newest release in each scope; no I/O.
+
+    The scopes are the tag's period, each shorter date prefix (`2026.11`, then
+    `2026`) and every release (`all`), keyed as rendered in `period`. A scope is
+    newest when no other counted tag in it, a final or post-release, sorts
+    higher by PEP 440. Equal versions are not higher, so the tag itself and its
+    other spellings never count against it. A result that is not valid is
+    returned unchanged.
+    """
+    if not result.valid:
+        return result
+    parsed = _parse_tag(result.input, config)
+    components = None if parsed is None else _release_components(parsed, config)
+    assert parsed is not None
+    assert components is not None
+    date = components[0]
+
+    higher: list[tuple[int, ...]] = []  # date parts of each higher counted tag
+    for other in set(tags):
+        version = _parse_tag(other, config)
+        other_components = (
+            None if version is None else _release_components(version, config)
+        )
+        if (
+            version is not None
+            and other_components is not None
+            and version_kind(version) in _COUNTED
+            and version > parsed
+        ):
+            higher.append(other_components[0])
+
+    newest = {
+        _format_date_parts(date[:size]): not any(
+            h[:size] == date[:size] for h in higher
+        )
+        for size in range(len(date), 0, -1)
+    }
+    newest[OVERALL_SCOPE] = not higher
+    return replace(result, newest=newest)
 
 
 def _version_parts(

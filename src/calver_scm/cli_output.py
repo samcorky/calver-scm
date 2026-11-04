@@ -202,6 +202,8 @@ def _validation_payload(result: ValidationResult) -> Payload:
         payload["version"] = parts.version
         payload["stable"] = parts.stable
         payload["tag_prefix"] = parts.tag_prefix
+    if result.newest is not None:
+        payload["newest"] = result.newest
     return payload
 
 
@@ -222,6 +224,7 @@ def _parsed_plain(payload: Payload) -> list[str]:
     ]
     lines.extend(line(f"date.{token}", n) for token, n in payload["date"].items())
     lines.extend(line(key, payload[key]) for key in _PARSED_SCALARS)
+    lines.extend(line(f"newest.{k}", v) for k, v in payload.get("newest", {}).items())
     return lines
 
 
