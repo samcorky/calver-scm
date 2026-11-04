@@ -53,6 +53,24 @@ class ValidationIssue:
 
 
 @dataclass(frozen=True, slots=True)
+class VersionParts:
+    """What a valid version is made of under the configured scheme.
+
+    `date` maps each scheme token as written (`YYYY`, `MM`, ...) to its value.
+    `period` is the date part as rendered, without the `0.` of an unstable scheme.
+    `patch` is 0 when the version has none. `pre` is the suffix as written
+    (`rc1`); `post` and `dev` are their numbers.
+    """
+
+    period: str
+    date: tuple[tuple[str, int], ...]
+    patch: int
+    pre: str | None
+    post: int | None
+    dev: int | None
+
+
+@dataclass(frozen=True, slots=True)
 class ValidationResult:
     """Outcome of validating one version or tag against the CalVer policy."""
 
@@ -60,6 +78,8 @@ class ValidationResult:
     issues: tuple[ValidationIssue, ...]
     kind: TagKind | None = None
     """How the version is treated when numbering releases; only set when valid."""
+    parts: VersionParts | None = None
+    """The components of the version; only set when valid."""
 
     @property
     def valid(self) -> bool:
@@ -130,7 +150,11 @@ def validate_version(
         )
 
     issues = tuple(_calendar_issues(tokens, release[: len(tokens)]))
-    return ValidationResult(text, issues, None if issues else version_kind(version))
+    if issues:
+        return ValidationResult(text, issues)
+    return ValidationResult(
+        text, issues, version_kind(version), _version_parts(version, config)
+    )
 
 
 def validate_against_repo(
@@ -191,7 +215,25 @@ def validate_against_repo(
     if _is_final(parsed):
         issues.extend(_lower_than_existing(others, config, parsed))
     all_issues = (*result.issues, *issues)
-    return ValidationResult(tag, all_issues, None if all_issues else result.kind)
+    if all_issues:
+        return ValidationResult(tag, all_issues)
+    return ValidationResult(tag, all_issues, result.kind, result.parts)
+
+
+def _version_parts(version: CalverVersion, config: CalverConfig) -> VersionParts:
+    """Break a version already checked against the scheme into its components."""
+    components = _release_components(version, config)
+    assert components is not None  # the release shape was checked by the caller
+    date, patch = components
+    pre = None if version.pre is None else f"{version.pre[0]}{version.pre[1]}"
+    return VersionParts(
+        _format_date_parts(date),
+        tuple(zip(config.scheme_tokens, date, strict=True)),
+        patch,
+        pre,
+        version.post,
+        version.dev,
+    )
 
 
 def _is_final(version: CalverVersion) -> bool:

@@ -158,6 +158,31 @@ def test_validate_writes_the_kind_of_a_valid_tag(
         "input=2026.4.2rc1",
         "kind=prerelease",
         "is_prerelease=true",
+        "period=2026.4",
+        "patch=2",
+        "pre=rc1",
+        "post=",
+        "dev=",
+    ]
+
+
+@pytest.mark.e2e
+def test_parse_writes_the_parts_of_a_tag(tmp_path: Path, github_output: Path) -> None:
+    """Let a later step build tags from the parts instead of a regex."""
+    assert (
+        main(["--format", "github", "parse", "2026.4.2.post1", "-r", str(tmp_path)])
+        == 0
+    )
+    assert github_output.read_text(encoding="utf-8").splitlines() == [
+        "valid=true",
+        "input=2026.4.2.post1",
+        "kind=postrelease",
+        "is_prerelease=false",
+        "period=2026.4",
+        "patch=2",
+        "pre=",
+        "post=1",
+        "dev=",
     ]
 
 

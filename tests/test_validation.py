@@ -4,7 +4,12 @@ import pytest
 
 from calver_scm.config import CalverConfig, CalverMode
 from calver_scm.release import TagKind
-from calver_scm.validation import IssueCode, ValidationResult, validate_version
+from calver_scm.validation import (
+    IssueCode,
+    ValidationResult,
+    VersionParts,
+    validate_version,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -134,3 +139,63 @@ def test_an_invalid_version_reports_no_kind(text: str) -> None:
     result = validate_version(text, MONTH)
     assert result.kind is None
     assert result.is_prerelease is None
+
+
+@pytest.mark.parametrize(
+    ("text", "config", "expected"),
+    [
+        (
+            "2026.4.2",
+            MONTH,
+            VersionParts("2026.4", (("YYYY", 2026), ("MM", 4)), 2, None, None, None),
+        ),
+        (
+            "2026.4",
+            MONTH,
+            VersionParts("2026.4", (("YYYY", 2026), ("MM", 4)), 0, None, None, None),
+        ),
+        (
+            "0.2026.11.0.post1",
+            UNSTABLE,
+            VersionParts("2026.11", (("YYYY", 2026), ("MM", 11)), 0, None, 1, None),
+        ),
+        (
+            "2026.4.1rc2",
+            MONTH,
+            VersionParts("2026.4", (("YYYY", 2026), ("MM", 4)), 1, "rc2", None, None),
+        ),
+        (
+            "2026.4.1.dev3",
+            MONTH,
+            VersionParts("2026.4", (("YYYY", 2026), ("MM", 4)), 1, None, None, 3),
+        ),
+        (
+            "2026.4.20.1",
+            DAY,
+            VersionParts(
+                "2026.4.20",
+                (("YYYY", 2026), ("MM", 4), ("DD", 20)),
+                1,
+                None,
+                None,
+                None,
+            ),
+        ),
+        (
+            "2026.7",
+            YEAR,
+            VersionParts("2026", (("YYYY", 2026),), 7, None, None, None),
+        ),
+    ],
+)
+def test_a_valid_version_reports_its_parts(
+    text: str, config: CalverConfig, expected: VersionParts
+) -> None:
+    """Report the period, date parts, patch and suffixes of a valid version."""
+    assert validate_version(text, config).parts == expected
+
+
+@pytest.mark.parametrize("text", ["2026.13.1", "not-a-version", "2026.4.2.3.4"])
+def test_an_invalid_version_reports_no_parts(text: str) -> None:
+    """Report no parts for an input that fails validation."""
+    assert validate_version(text, MONTH).parts is None
