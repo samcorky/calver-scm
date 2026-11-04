@@ -30,7 +30,11 @@ from calver_scm.release import (
     plan_next_tag,
 )
 from calver_scm.utils import _today_in_timezone
-from calver_scm.validation import validate_against_repo, validate_version
+from calver_scm.validation import (
+    newest_in_scopes,
+    validate_against_repo,
+    validate_version,
+)
 
 EXIT_OK = 0
 EXIT_INVALID = 1
@@ -269,14 +273,16 @@ def validate(
 calver-scm parse v2026.4.2 --tag
 calver-scm --json parse v0.2026.11.0.post1 --tag
 calver-scm --format github parse "$GITHUB_REF_NAME" --tag
+calver-scm --json parse "$GITHUB_REF_NAME" --tag --against-repo   # newest per scope
 ```
 
 Plain output has one tab-separated line per part: kind, version, period, one
 `date.<token>` line per date component, patch, pre, post, dev, stable and
-tag_prefix. A part the version lacks is empty.
+tag_prefix. A part the version lacks is empty. With `--against-repo`, one
+`newest.<scope>` line follows for each scope.
 
 **Exit codes:** `0` parsed, `1` invalid, `2` bad usage or the project configuration
-is unusable."""
+is unusable, `3` `--against-repo` on a shallow clone."""
 )
 def parse(
     version: str,
@@ -284,6 +290,10 @@ def parse(
     *,
     tag: Annotated[
         bool, cyclopts.Parameter(name=("--tag", "-t"), negative="", show_default=False)
+    ] = False,
+    against_repo: Annotated[
+        bool,
+        cyclopts.Parameter(name="--against-repo", negative="", show_default=False),
     ] = False,
     root: RootOption = Path(),
     output: OutputParameter,
@@ -300,15 +310,30 @@ def parse(
         The version to read, or the full Git tag when `--tag` is given.
     tag
         Treat the input as a Git tag that includes the configured tag prefix.
+    against_repo
+        Also report, under `newest`, whether the tag is the newest release in
+        its period, in each shorter date prefix and overall (`all`). Only
+        finals and post-releases count, ordered by PEP 440, so a project can
+        avoid moving a tag such as `latest` backwards. JSON and plain output
+        only; GitHub output omits it. Needs `--tag` and a full clone.
     root
         Project directory whose `pyproject.toml` holds `[tool.calver-scm]`.
     """
+    if against_repo and not tag:
+        print("error: --against-repo needs --tag", file=sys.stderr)
+        return EXIT_RESOLUTION_ERROR
     try:
         config = _load_calver_config(root.resolve())
         result = validate_version(version, config, is_tag=tag)
+        if against_repo and result.valid:
+            _require_full_history(root)
+            result = newest_in_scopes(result, config, list_local_tags(root))
     except (RuntimeError, ResolutionError) as e:
         print(f"error: {e}", file=sys.stderr)
         return EXIT_RESOLUTION_ERROR
+    except NextTagError as e:
+        print(f"error: {e.message} [{e.code}]", file=sys.stderr)
+        return EXIT_TAG_UNAVAILABLE
     output.parsed(result)
     return EXIT_OK if result.valid else EXIT_INVALID
 

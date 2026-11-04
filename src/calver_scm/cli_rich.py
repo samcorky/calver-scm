@@ -227,6 +227,7 @@ def render_parsed(payload: Payload) -> None:
         (key, payload[key])
         for key in ("patch", "pre", "post", "dev", "stable", "tag_prefix")
     )
+    rows.extend((f"newest.{k}", v) for k, v in payload.get("newest", {}).items())
     table = Table(box=box.ROUNDED, show_header=False, expand=False)
     table.add_column(style="bold", no_wrap=True)
     table.add_column()

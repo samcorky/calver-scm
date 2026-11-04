@@ -499,7 +499,9 @@ calver-scm validate 2026.13.1 --json         # {"valid": false, "input": ..., "e
 
 `validate` checks that a version is valid PEP 440 and fits your configured scheme: the number of date components, calendar ranges (month 1-12, real days of the month, week 1-53), the `stable` setting's `0.` prefix and, with `--tag`, the `tag_prefix`. Pre-release, post-release, dev and local suffixes are accepted. A valid input also reports its `kind` (`final`, `prerelease`, `postrelease` or `dev`, as `tags` does) and `is_prerelease`, which is true for pre-release and dev versions, so a release step can set its pre-release flag from the tag alone. It also reports the parts it parsed, so a script never has to re-parse the tag against the scheme: `period` (the date part as rendered, without an unstable scheme's `0.`), `date` (the date values keyed by the scheme tokens as written, such as `{"YYYY": 2026, "MM": 11}`), `patch` (`0` when the version has none), `pre` (the suffix as written, such as `rc1`), and the `post` and `dev` numbers; absent parts are `null`; and `version` (the normalised version without the tag prefix, so it keeps an unstable scheme's `0.`), `stable` (the configured setting) and `tag_prefix` (the prefix removed from the input, empty when `--tag` is not given). It reads `[tool.calver-scm]` (and `CALVER_SCM_*` overrides) from `--root` but needs no Git checkout. Week 53 is accepted in any year because `YYYY.WW` takes its year from the calendar date, not the ISO week-year.
 
-`parse` takes the same input (`calver-scm parse v2026.4.2 --tag`) and applies the same checks, but is for reading the version rather than judging it. It prints one tab-separated line per part (`kind`, `version`, `period`, one `date.<token>` line per date component, `patch`, `pre`, `post`, `dev`, `stable`, `tag_prefix`), with an empty value for a part the version lacks. `--json` and `--format github` give the same fields as `validate`. An invalid input prints the findings as `validate` does and exits `1`, so a script stops on a bad tag. It does not take `--against-repo`.
+`parse` takes the same input (`calver-scm parse v2026.4.2 --tag`) and applies the same checks, but is for reading the version rather than judging it. It prints one tab-separated line per part (`kind`, `version`, `period`, one `date.<token>` line per date component, `patch`, `pre`, `post`, `dev`, `stable`, `tag_prefix`), with an empty value for a part the version lacks. `--json` and `--format github` give the same fields as `validate`. An invalid input prints the findings as `validate` does and exits `1`, so a script stops on a bad tag.
+
+`parse --against-repo` (with `--tag`, on a full clone) also reports whether the tag is the newest release in each scope it belongs to, so a project can avoid moving a tag such as `latest`, `0.2026.11` or a docs "current" link backwards when it releases an older version later, such as a `.post` hotfix. Under `newest` (JSON) or as `newest.<scope>` lines (plain), the scopes are the tag's period (`2026.11`), each shorter date prefix (`2026`) and `all`. A scope is `true` when no other final or post-release tag in it sorts higher by PEP 440; pre-releases and dev releases do not count, as in `tags`. Equal versions are ignored, so a tag that already exists is not compared with itself. `--format github` leaves `newest` out, as its keys are not valid output names, so read it from `--json`. A shallow clone exits `3`.
 
 `--against-repo` (with `--tag`) also reads the local tags, as `next-tag` does, so `validate` can say whether the tag makes sense in this repository and not only whether it is well-formed. It judges the tag as a new release among the existing tags, on any branch, and every finding is an error (exit code `1`), because the point is a release CI gate. A tag pointing at HEAD is the one being built, so on a tag-push build it does not count as already existing. Post-releases are only checked for existence and period, since they legitimately follow an older release. Without the flag `validate` is unchanged and needs no checkout. With it, a shallow clone exits `3`, as for `next-tag`, because the tag list cannot be trusted. Rerunning a build for an old release tag fails the later-release checks, as the tag is judged as a new one.
 
@@ -602,7 +604,7 @@ A tag without the configured prefix is still read if it is a valid version, exac
 | --- | --- | --- |
 | `--root` | `-r` | every command |
 | `--tag` | `-t` | `validate`, `parse` |
-| `--against-repo` | none | `validate` |
+| `--against-repo` | none | `validate`, `parse` |
 | `--date` | `-d` | `next-tag` |
 | `--pre` | none | `next-tag` |
 | `--promote` | none | `next-tag` |
@@ -684,7 +686,7 @@ To gate a tag-push workflow instead, check the tag against the repository first;
 | `0` | Success. For `validate`, the input is valid. For `doctor`, no errors (warnings are allowed). |
 | `1` | `validate`: the input is invalid. `doctor`: errors were found. |
 | `2` | Invalid usage, invalid configuration, or the version could not be resolved. `--format github` without `GITHUB_OUTPUT`, or on a command that does not support it, is invalid usage. |
-| `3` | `validate --against-repo`: a shallow clone. `next-tag`: no safe tag can be proposed (a shallow clone, `patch = false` with the period already released, `--promote` with nothing to promote, or `--post` with no release in the period). |
+| `3` | `validate --against-repo` and `parse --against-repo`: a shallow clone. `next-tag`: no safe tag can be proposed (a shallow clone, `patch = false` with the period already released, `--promote` with nothing to promote, or `--post` with no release in the period). |
 
 ### Errors and invalid configuration
 
