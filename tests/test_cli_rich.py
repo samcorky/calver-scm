@@ -34,6 +34,11 @@ def explanation_payload(**overrides: Any) -> dict[str, Any]:
             "patch": 3,
         },
         "config": {"mode": "month", "scheme": "YYYY.MM", "patch": True},
+        "config_sources": {
+            "mode": "default",
+            "scheme": "pyproject.toml",
+            "patch": "env CALVER_SCM_PATCH",
+        },
         "env_overrides": {"CALVER_SCM_NO_DEV": "true"},
     }
     payload.update(overrides)
@@ -61,6 +66,28 @@ def test_explanation_shows_the_derivation_flow(
     assert "Environment overrides" in out
     assert "CALVER_SCM_NO_DEV true" in out
     assert "No CALVER_SCM_* overrides" not in out
+
+
+def test_explanation_shows_where_each_setting_came_from(
+    capsys: pytest.CaptureFixture[str], flat: Callable[[str], str]
+) -> None:
+    """Label every configuration row with the file or variable that set it."""
+    render_explanation(explanation_payload())
+    out = flat(capsys.readouterr().out)
+    assert "mode month default" in out
+    assert "scheme YYYY.MM pyproject.toml" in out
+    assert "patch yes env CALVER_SCM_PATCH" in out
+
+
+def test_explanation_keeps_configuration_full_width_when_wide(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Put SCM and Calculation side by side, with Configuration on its own row."""
+    monkeypatch.setenv("COLUMNS", "100")
+    render_explanation(explanation_payload())
+    lines = capsys.readouterr().out.splitlines()
+    assert any("SCM" in line and "Calculation" in line for line in lines)
+    assert not any("Configuration" in line and "Calculation" in line for line in lines)
 
 
 def test_explanation_handles_missing_tag_values_and_a_single_commit(

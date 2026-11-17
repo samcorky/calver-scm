@@ -208,3 +208,125 @@ def test_plain_and_rich_reports(
     assert "→ Tag a release" in rich
     assert "status: warning" in rich
     assert "1 warning" in rich
+
+
+def _project(
+    make_git_project: Callable[..., Path],
+    *,
+    pyproject: str | None = None,
+    settings: str | None = None,
+) -> Path:
+    """A tagged project with an optional pyproject.toml and calver-scm.toml."""
+    build = SETUPTOOLS.format(local_scheme="no-local-version")
+    return make_git_project(
+        None if pyproject is None else build + pyproject,
+        files=None if settings is None else {"calver-scm.toml": settings},
+        tag="v2026.04.2",
+    )
+
+
+@pytest.mark.e2e
+def test_settings_source_names_pyproject_toml(
+    make_git_project: Callable[..., Path], capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Say when settings come from [tool.calver-scm] in pyproject.toml."""
+    project = _project(
+        make_git_project, pyproject="[tool.calver-scm]\nstable = false\n"
+    )
+    _, report = run_doctor(capsys, project)
+    check = by_code(report)["settings_source"]
+    assert check["severity"] == "info"
+    assert check["summary"] == "Settings read from pyproject.toml"
+
+
+@pytest.mark.e2e
+def test_settings_source_names_calver_scm_toml_without_a_pyproject(
+    make_git_project: Callable[..., Path], capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Work, and say where settings came from, with no pyproject.toml at all."""
+    project = _project(make_git_project, settings="stable = false\n")
+    code, report = run_doctor(capsys, project)
+    assert code == 0
+    assert report["status"] == "ok"
+    assert (
+        by_code(report)["settings_source"]["summary"]
+        == "Settings read from calver-scm.toml"
+    )
+
+
+@pytest.mark.e2e
+def test_settings_source_names_both_files_in_precedence_order(
+    make_git_project: Callable[..., Path], capsys: pytest.CaptureFixture[str]
+) -> None:
+    """List pyproject.toml then calver-scm.toml, the order they are applied."""
+    project = _project(
+        make_git_project,
+        pyproject="[tool.calver-scm]\nstable = false\n",
+        settings="stable = false\n",
+    )
+    _, report = run_doctor(capsys, project)
+    checks = by_code(report)
+    assert (
+        checks["settings_source"]["summary"]
+        == "Settings read from pyproject.toml and calver-scm.toml"
+    )
+    assert "settings_conflict" not in checks
+
+
+@pytest.mark.e2e
+def test_conflicting_settings_warn_without_failing(
+    make_git_project: Callable[..., Path], capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Warn about a key set differently in both files; calver-scm.toml wins."""
+    project = _project(
+        make_git_project,
+        pyproject='[tool.calver-scm]\ntag_prefix = "v"\nstable = false\n',
+        settings='tag_prefix = "w"\nstable = true\n',
+    )
+    code, report = run_doctor(capsys, project)
+    check = by_code(report)["settings_conflict"]
+    assert code == 0
+    assert report["status"] == "warning"
+    assert check["severity"] == "warning"
+    assert check["detail"] == "Keys: stable, tag_prefix. calver-scm.toml wins."
+    assert check["remediation"] == "Keep each setting in one file."
+
+
+@pytest.mark.e2e
+def test_invalid_calver_scm_toml_is_a_configuration_error(
+    make_git_project: Callable[..., Path], capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Report malformed calver-scm.toml once, not as source or conflict noise."""
+    project = _project(make_git_project, pyproject="", settings="stable = \n")
+    code, report = run_doctor(capsys, project)
+    checks = by_code(report)
+    assert code == 1
+    assert checks["calver_config"]["severity"] == "error"
+    assert "Invalid calver-scm.toml" in checks["calver_config"]["detail"]
+    assert "calver-scm.toml" in checks["calver_config"]["remediation"]
+    assert "settings_source" not in checks
+    assert "settings_conflict" not in checks
+
+
+@pytest.mark.e2e
+def test_env_overrides_are_said_to_override_the_settings_files(
+    healthy: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Do not claim the variables only override pyproject.toml."""
+    monkeypatch.setenv("CALVER_SCM_NO_DEV", "true")
+    _, report = run_doctor(capsys, healthy)
+    assert (
+        by_code(report)["env_overrides"]["summary"]
+        == "CALVER_SCM_* variables override the settings files"
+    )
+
+
+@pytest.mark.e2e
+def test_build_configuration_remediation_mentions_calver_scm_toml(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Point at calver-scm.toml as an option when no build setup is found."""
+    _, report = run_doctor(capsys, tmp_path)
+    assert "calver-scm.toml" in by_code(report)["build_config"]["remediation"]

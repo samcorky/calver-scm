@@ -265,7 +265,9 @@ def _explanation_payload(explanation: BuildExplanation) -> Payload:
             "no_dev": config.no_dev,
             "fallback": config.fallback.value,
             "tag_prefix": config.tag_prefix,
+            "timezone": config.timezone,
         },
+        "config_sources": dict(explanation.config_sources),
         "env_overrides": dict(explanation.env_overrides),
     }
 

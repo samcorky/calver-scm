@@ -10,7 +10,21 @@ from typing import TYPE_CHECKING, Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
     from pathlib import Path
+
+CONFIG_FILE_NAME = "calver-scm.toml"
+PYPROJECT_FILE_NAME = "pyproject.toml"
+CALVER_FIELDS = (
+    "mode",
+    "scheme",
+    "patch",
+    "stable",
+    "no_dev",
+    "fallback",
+    "tag_prefix",
+    "timezone",
+)
 
 
 TRUE_ENV_VALUES = frozenset(("1", "true", "yes", "on"))
@@ -257,22 +271,94 @@ class CalverConfig:
         return cls.from_dict(data)
 
 
-@cache
-def _load_calver_config(root: Path) -> CalverConfig:
-    """Load config from pyproject.toml, then override with environment variables."""
-    pyproject = root / "pyproject.toml"
-    data: dict[str, Any] = {}
+def _read_toml(path: Path, label: str) -> dict[str, Any] | None:
+    """Parse a TOML file, returning `None` if it does not exist."""
+    try:
+        with path.open("rb") as f:
+            return tomllib.load(f)
+    except FileNotFoundError:
+        return None
+    except tomllib.TOMLDecodeError as e:
+        raise RuntimeError(f"Invalid {label}: {e}") from e
 
-    if pyproject.exists():
-        try:
-            with pyproject.open("rb") as f:
-                toml_data = tomllib.load(f)
-            data = toml_data.get("tool", {}).get("calver-scm", {})
-        except tomllib.TOMLDecodeError as e:
-            raise RuntimeError(f"Invalid pyproject.toml: {e}") from e
+
+def read_settings_file(root: Path) -> dict[str, Any] | None:
+    """Return the parsed `calver-scm.toml` table, or `None` if there is none."""
+    return _read_toml(root / CONFIG_FILE_NAME, CONFIG_FILE_NAME)
+
+
+def _pyproject_settings(root: Path) -> dict[str, Any]:
+    """Return the `[tool.calver-scm]` table, empty if there is none."""
+    data = _read_toml(root / PYPROJECT_FILE_NAME, PYPROJECT_FILE_NAME) or {}
+    table: dict[str, Any] = data.get("tool", {}).get("calver-scm", {})
+    return table
+
+
+@cache
+def load_calver_config_with_sources(
+    root: Path,
+) -> tuple[CalverConfig, Mapping[str, str]]:
+    """Load settings and record where each one came from.
+
+    Layers, lowest to highest precedence: the defaults, `[tool.calver-scm]` in
+    `pyproject.toml`, `calver-scm.toml`, then `CALVER_SCM_*` variables.
+    """
+    pyproject = _pyproject_settings(root)
+    settings = read_settings_file(root) or {}
+
+    sources: dict[str, str] = {}
+    for field in CALVER_FIELDS:
+        if field in settings:
+            sources[field] = CONFIG_FILE_NAME
+        elif field in pyproject:
+            sources[field] = PYPROJECT_FILE_NAME
+        else:
+            sources[field] = "default"
+        env_name = f"CALVER_SCM_{field.upper()}"
+        if env_name in os.environ:
+            sources[field] = f"env {env_name}"
 
     try:
-        cfg = CalverConfig.from_dict(data)
-        return CalverConfig.overlay_env(cfg)
+        cfg = CalverConfig.overlay_env(
+            CalverConfig.from_dict({**pyproject, **settings})
+        )
     except ValueError as e:
         raise RuntimeError(f"Invalid config: {e}") from e
+    return cfg, MappingProxyType(sources)
+
+
+def _load_calver_config(root: Path) -> CalverConfig:
+    """Load the layered configuration, without its sources."""
+    return load_calver_config_with_sources(root)[0]
+
+
+@dataclass(frozen=True, slots=True)
+class SettingsFiles:
+    """Which files supply settings, and which keys they disagree on."""
+
+    files: tuple[str, ...]
+    conflicts: tuple[str, ...]
+
+
+def describe_settings_files(root: Path) -> SettingsFiles:
+    """Name the files that supply settings and the keys set differently in both."""
+    pyproject = _pyproject_settings(root)
+    settings = read_settings_file(root)
+
+    files: list[str] = []
+    if pyproject:
+        files.append(PYPROJECT_FILE_NAME)
+    if settings is not None:
+        files.append(CONFIG_FILE_NAME)
+
+    conflicts = tuple(
+        sorted(
+            key
+            for key in CALVER_FIELDS
+            if settings is not None
+            and key in pyproject
+            and key in settings
+            and pyproject[key] != settings[key]
+        )
+    )
+    return SettingsFiles(tuple(files), conflicts)

@@ -10,7 +10,7 @@ import pytest
 import time_machine
 
 # noinspection PyProtectedMember
-from calver_scm.config import _load_calver_config
+from calver_scm.config import load_calver_config_with_sources
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator
@@ -55,9 +55,9 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
 @pytest.fixture(autouse=True)
 def clear_config_cache() -> Generator[None]:
     """Clear cached config reads between tests for deterministic behaviour."""
-    _load_calver_config.cache_clear()
+    load_calver_config_with_sources.cache_clear()
     yield
-    _load_calver_config.cache_clear()
+    load_calver_config_with_sources.cache_clear()
 
 
 @pytest.fixture
@@ -144,8 +144,9 @@ def make_git_project(tmp_path: Path) -> Callable[..., Path]:
         )
 
     def _make(
-        pyproject: str,
+        pyproject: str | None,
         *,
+        files: dict[str, str] | None = None,
         tag: str | None = None,
         commits_after_tag: int = 0,
         dirty: bool = False,
@@ -154,7 +155,10 @@ def make_git_project(tmp_path: Path) -> Callable[..., Path]:
         repo = tmp_path / "repo"
         project = repo / subdir if subdir else repo
         project.mkdir(parents=True)
-        (project / "pyproject.toml").write_text(pyproject, encoding="utf-8")
+        if pyproject is not None:
+            (project / "pyproject.toml").write_text(pyproject, encoding="utf-8")
+        for name, text in (files or {}).items():
+            (project / name).write_text(text, encoding="utf-8")
         _git(repo, "init", "-q")
         _git(repo, "add", ".")
         _git(repo, "commit", "-q", "-m", "initial")
@@ -165,8 +169,12 @@ def make_git_project(tmp_path: Path) -> Callable[..., Path]:
             _git(repo, "add", ".")
             _git(repo, "commit", "-q", "-m", f"change {i}")
         if dirty:
-            (project / "pyproject.toml").write_text(
-                pyproject + "\n# dirty\n", encoding="utf-8"
+            # Only a change to a tracked file makes the tree dirty.
+            tracked = project / (
+                "pyproject.toml" if pyproject is not None else next(iter(files or {}))
+            )
+            tracked.write_text(
+                tracked.read_text(encoding="utf-8") + "\n# dirty\n", encoding="utf-8"
             )
         return project
 
