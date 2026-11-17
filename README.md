@@ -439,11 +439,31 @@ timezone = "local"
 timezone = "Pacific/Auckland"
 ```
 
+### Without a `pyproject.toml`: `calver-scm.toml`
+
+A project that does not build a Python package (for example an app installed from `requirements.txt` and deployed in a container) can still use calver-scm for its version. Put the same settings in a `calver-scm.toml` at the repository root, without the `tool.` nesting:
+
+```toml
+# calver-scm.toml, at the repository root; no pyproject.toml needed
+stable     = false
+tag_prefix = "v"
+```
+
+```console
+$ calver-scm --format plain version
+2026.11.1.dev2
+```
+
+- The file is optional, and an empty one is valid. It takes every key from `[tool.calver-scm]`, plus `local_scheme` (see [Local scheme](#local-scheme)), which the CLI otherwise reads from `[tool.setuptools_scm]`. Unknown keys are ignored.
+- Settings are layered, lowest to highest: `[tool.calver-scm]` in `pyproject.toml`, then `calver-scm.toml`, then the `CALVER_SCM_*` variables. A project can use both files; `calver-scm doctor` warns when a key has a different value in each.
+- It is read by the `calver-scm` command (`version`, `explain`, `doctor` and the rest) and by setuptools-scm when it runs the version scheme. A real setuptools or Hatch-VCS build still takes its build options from `pyproject.toml`, so when the project has a `[tool.setuptools_scm]` or Hatch-VCS section the CLI uses that for `local_scheme` and the other build options, as the build does.
+- `calver-scm explain` shows which layer supplied each setting, and `doctor` names the files read.
+
 ---
 
 ## Environment variable overrides
 
-Every option can be overridden at build time without touching `pyproject.toml`, which is handy for CI pipelines.
+Every option can be overridden at build time without touching `pyproject.toml` or `calver-scm.toml`, which is handy for CI pipelines.
 
 | Variable                | Equivalent option           |
 |-------------------------|-----------------------------|
@@ -456,7 +476,7 @@ Every option can be overridden at build time without touching `pyproject.toml`, 
 | `CALVER_SCM_TAG_PREFIX` | `tag_prefix`                |
 | `CALVER_SCM_TIMEZONE`   | `timezone`                  |
 
-Environment variables take precedence over `pyproject.toml`.
+Environment variables take precedence over both `pyproject.toml` and `calver-scm.toml`.
 
 ---
 
@@ -497,7 +517,7 @@ calver-scm validate "$GITHUB_REF_NAME" --tag --against-repo   # also check it ag
 calver-scm validate 2026.13.1 --json         # {"valid": false, "input": ..., "errors": [...]}
 ```
 
-`validate` checks that a version is valid PEP 440 and fits your configured scheme: the number of date components, calendar ranges (month 1-12, real days of the month, week 1-53), the `stable` setting's `0.` prefix and, with `--tag`, the `tag_prefix`. Pre-release, post-release, dev and local suffixes are accepted. A valid input also reports its `kind` (`final`, `prerelease`, `postrelease` or `dev`, as `tags` does) and `is_prerelease`, which is true for pre-release and dev versions, so a release step can set its pre-release flag from the tag alone. It also reports the parts it parsed, so a script never has to re-parse the tag against the scheme: `period` (the date part as rendered, without an unstable scheme's `0.`), `date` (the date values keyed by the scheme tokens as written, such as `{"YYYY": 2026, "MM": 11}`), `patch` (`0` when the version has none), `pre` (the suffix as written, such as `rc1`), and the `post` and `dev` numbers; absent parts are `null`; and `version` (the normalised version without the tag prefix, so it keeps an unstable scheme's `0.`), `stable` (the configured setting) and `tag_prefix` (the prefix removed from the input, empty when `--tag` is not given). It reads `[tool.calver-scm]` (and `CALVER_SCM_*` overrides) from `--root` but needs no Git checkout. Week 53 is accepted in any year because `YYYY.WW` takes its year from the calendar date, not the ISO week-year.
+`validate` checks that a version is valid PEP 440 and fits your configured scheme: the number of date components, calendar ranges (month 1-12, real days of the month, week 1-53), the `stable` setting's `0.` prefix and, with `--tag`, the `tag_prefix`. Pre-release, post-release, dev and local suffixes are accepted. A valid input also reports its `kind` (`final`, `prerelease`, `postrelease` or `dev`, as `tags` does) and `is_prerelease`, which is true for pre-release and dev versions, so a release step can set its pre-release flag from the tag alone. It also reports the parts it parsed, so a script never has to re-parse the tag against the scheme: `period` (the date part as rendered, without an unstable scheme's `0.`), `date` (the date values keyed by the scheme tokens as written, such as `{"YYYY": 2026, "MM": 11}`), `patch` (`0` when the version has none), `pre` (the suffix as written, such as `rc1`), and the `post` and `dev` numbers; absent parts are `null`; and `version` (the normalised version without the tag prefix, so it keeps an unstable scheme's `0.`), `stable` (the configured setting) and `tag_prefix` (the prefix removed from the input, empty when `--tag` is not given). It reads `[tool.calver-scm]` or `calver-scm.toml` (and `CALVER_SCM_*` overrides) from `--root` but needs no Git checkout. Week 53 is accepted in any year because `YYYY.WW` takes its year from the calendar date, not the ISO week-year.
 
 `parse` takes the same input (`calver-scm parse v2026.4.2 --tag`) and applies the same checks, but is for reading the version rather than judging it. It prints one tab-separated line per part (`kind`, `version`, `period`, one `date.<token>` line per date component, `patch`, `pre`, `post`, `dev`, `stable`, `tag_prefix`), with an empty value for a part the version lacks. `--json` and `--format github` give the same fields as `validate`. An invalid input prints the findings as `validate` does and exits `1`, so a script stops on a bad tag.
 
@@ -511,7 +531,7 @@ calver-scm validate 2026.13.1 --json         # {"valid": false, "input": ..., "e
 calver-scm explain
 ```
 
-Shows how the build version was derived: the tag, commit distance and dirty flag that setuptools-scm supplied, the date and timezone used, which branch of the algorithm ran (`exact_tag`, `patch_incremented`, `patch_reset`, `no_tag_fallback` or `incompatible_tag_fallback`), the effective configuration, and any `CALVER_SCM_*` overrides in force. It separates the `public_version` that calver-scm produced from the `local_segment` that your `local_scheme` appended afterwards. It runs the same code path as a real build, and it never prints absolute paths.
+Shows how the build version was derived: the tag, commit distance and dirty flag that setuptools-scm supplied, the date and timezone used, which branch of the algorithm ran (`exact_tag`, `patch_incremented`, `patch_reset`, `no_tag_fallback` or `incompatible_tag_fallback`), the effective configuration with where each setting came from (`default`, `pyproject.toml`, `calver-scm.toml` or the `CALVER_SCM_*` variable), and any `CALVER_SCM_*` overrides in force. It separates the `public_version` that calver-scm produced from the `local_segment` that your `local_scheme` appended afterwards. It runs the same code path as a real build, and it never prints absolute paths.
 
 `--promote` proposes the final tag for the latest pre-release (in PEP 440 order, across channels) of the release that would otherwise be proposed, so `v2026.4.3rc2` gives `v2026.4.3`. It exits `3` with `no_prerelease` when there is nothing to promote, and with `prerelease_not_ancestor` when that pre-release is not an ancestor of HEAD, because the final tag would then not contain what was tested. If HEAD has moved on since the pre-release, it still succeeds but prints a warning to stderr.
 
@@ -690,7 +710,7 @@ To gate a tag-push workflow instead, check the tag against the repository first;
 
 ### Errors and invalid configuration
 
-Errors are always plain text on stderr, whatever the format, and leave stdout empty. If `[tool.calver-scm]`, a `CALVER_SCM_*` variable or `pyproject.toml` itself is invalid, every command stops with `error: Invalid config: …` and exit code 2. `doctor` is the exception: it reports the problem as an error check, carries on with the other checks, and exits 1. The build behaves the same way in spirit: setuptools-scm raises a `RuntimeError` with the same message, so the build fails instead of producing a wrong version.
+Errors are always plain text on stderr, whatever the format, and leave stdout empty. If `[tool.calver-scm]`, `calver-scm.toml`, a `CALVER_SCM_*` variable or `pyproject.toml` itself is invalid, every command stops with `error: Invalid config: …` and exit code 2. `doctor` is the exception: it reports the problem as an error check, carries on with the other checks, and exits 1. The build behaves the same way in spirit: setuptools-scm raises a `RuntimeError` with the same message, so the build fails instead of producing a wrong version.
 
 `validate` is also an exception to "errors go to stderr": an invalid input is its answer, so the verdict goes to stdout, and with `--json` it stays parseable.
 
@@ -725,7 +745,10 @@ Errors are always plain text on stderr, whatever the format, and leave stdout em
  "calculation": {"date": "2026-04-15", "timezone": "UTC", "base": "2026.4",
                  "tag_base": "2026.4", "tag_patch": 2, "patch": 3},
  "config": {"mode": "month", "scheme": "YYYY.MM", "patch": true, "stable": true,
-            "no_dev": false, "fallback": "dev", "tag_prefix": "v"},
+            "no_dev": false, "fallback": "dev", "tag_prefix": "v", "timezone": "UTC"},
+ "config_sources": {"mode": "default", "scheme": "pyproject.toml",   // all eight settings; each is
+                    "stable": "calver-scm.toml",                      // default, pyproject.toml,
+                    "tag_prefix": "env CALVER_SCM_TAG_PREFIX"},       // calver-scm.toml or env CALVER_SCM_<NAME>
  "env_overrides": {"CALVER_SCM_NO_DEV": "true"}}      // {} when none are set
 
 // doctor
@@ -756,8 +779,10 @@ Errors are always plain text on stderr, whatever the format, and leave stdout em
 | Code | Severity | Meaning |
 | --- | --- | --- |
 | `build_config` | `ok` or `error` | The build is configured with `version_scheme = "calver-scm"` (setuptools or Hatch-VCS). |
-| `calver_config` | `ok` or `error` | `[tool.calver-scm]` and the `CALVER_SCM_*` variables are valid. |
-| `env_overrides` | `info` | `CALVER_SCM_*` variables are overriding `pyproject.toml`. |
+| `calver_config` | `ok` or `error` | `[tool.calver-scm]`, `calver-scm.toml` and the `CALVER_SCM_*` variables are valid. |
+| `settings_source` | `info` | Which of `pyproject.toml` and `calver-scm.toml` supplied settings. Omitted when neither does. |
+| `settings_conflict` | `warning` | A key has a different value in `pyproject.toml` and `calver-scm.toml`; `calver-scm.toml` wins. |
+| `env_overrides` | `info` | `CALVER_SCM_*` variables are overriding the settings files. |
 | `git_available` | `ok` or `error` | Git is installed and on `PATH`. |
 | `resolution` | `ok` or `error` | The version resolves. Skipped when `build_config` fails. |
 | `shallow_checkout` | `warning` | A shallow clone, so tags and commit distance may be missing. |

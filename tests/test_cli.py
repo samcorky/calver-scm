@@ -373,6 +373,15 @@ def test_explain_describes_a_patch_reset(
         "config.no_dev": "false",
         "config.fallback": "dev",
         "config.tag_prefix": "v",
+        "config.timezone": "UTC",
+        "config_sources.mode": "default",
+        "config_sources.scheme": "default",
+        "config_sources.patch": "default",
+        "config_sources.stable": "default",
+        "config_sources.no_dev": "default",
+        "config_sources.fallback": "default",
+        "config_sources.tag_prefix": "default",
+        "config_sources.timezone": "default",
     }
 
 
@@ -702,3 +711,88 @@ def test_parse_fails_on_an_unusable_configuration(
     root = _project_config(tmp_path, 'mode = "fortnight"')
     assert main(["parse", "2026.4.2", "--root", str(root)]) == 2
     assert capsys.readouterr().err.startswith("error:")
+
+
+@pytest.fixture
+def settings_only_project(make_git_project: Callable[..., Path]) -> Path:
+    """A project with no pyproject.toml, only calver-scm.toml, three commits on."""
+    return make_git_project(
+        None,
+        files={"calver-scm.toml": 'local_scheme = "no-local-version"\n'},
+        tag="v2020.01.4",
+        commits_after_tag=3,
+    )
+
+
+@pytest.mark.e2e
+def test_version_works_with_only_calver_scm_toml(
+    settings_only_project: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Resolve the version in a project that has no pyproject.toml."""
+    with time_machine.travel(_noon(2026, 4, 15), tick=False):
+        assert main(["version", "--root", str(settings_only_project)]) == 0
+    captured = capsys.readouterr()
+    assert captured.out == "2026.4.0.dev3\n"
+    assert captured.err == ""
+
+
+@pytest.mark.e2e
+def test_explain_works_with_only_calver_scm_toml(
+    settings_only_project: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Explain a version in a project that has no pyproject.toml."""
+    with time_machine.travel(_noon(2026, 4, 15), tick=False):
+        assert main(["--json", "explain", "--root", str(settings_only_project)]) == 0
+    assert json.loads(capsys.readouterr().out)["version"] == "2026.4.0.dev3"
+
+
+@pytest.mark.e2e
+def test_doctor_works_with_only_calver_scm_toml(
+    settings_only_project: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Diagnose a project that has no pyproject.toml without reporting errors."""
+    with time_machine.travel(_noon(2026, 4, 15), tick=False):
+        assert main(["--json", "doctor", "--root", str(settings_only_project)]) == 0
+    report = json.loads(capsys.readouterr().out)
+    assert report["status"] != "error"
+    assert {c["code"] for c in report["checks"]} >= {"build_config", "resolution"}
+
+
+@pytest.mark.e2e
+def test_explain_json_reports_the_source_of_every_setting(
+    make_git_project: Callable[..., Path],
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Name the layer that supplied each of the eight settings."""
+    monkeypatch.setenv("CALVER_SCM_TAG_PREFIX", "v")
+    project = make_git_project(
+        '[tool.setuptools_scm]\nversion_scheme = "calver-scm"\n'
+        "[tool.calver-scm]\nno_dev = true\nstable = true\n",
+        files={"calver-scm.toml": "stable = false\n"},
+        tag="v2026.04.2",
+    )
+    assert main(["--json", "explain", "--root", str(project)]) == 0
+    data = json.loads(capsys.readouterr().out)
+    assert data["config_sources"] == {
+        "mode": "default",
+        "scheme": "default",
+        "patch": "default",
+        "stable": "calver-scm.toml",
+        "no_dev": "pyproject.toml",
+        "fallback": "default",
+        "tag_prefix": "env CALVER_SCM_TAG_PREFIX",
+        "timezone": "default",
+    }
+    assert data["config"]["timezone"] == "UTC"
+
+
+@pytest.mark.e2e
+def test_explain_plain_prints_a_source_line_per_setting(
+    settings_only_project: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Print each source as a dotted `config_sources.<setting>` line."""
+    assert main(["explain", "--root", str(settings_only_project)]) == 0
+    out = capsys.readouterr().out.splitlines()
+    assert "config_sources.mode: default" in out
+    assert "config.timezone: UTC" in out

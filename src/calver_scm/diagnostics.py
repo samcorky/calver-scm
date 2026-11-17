@@ -13,7 +13,12 @@ from calver_scm.cli_support import (
     explain_build_version,
     is_shallow_repository,
 )
-from calver_scm.config import _load_calver_config
+from calver_scm.config import (
+    CONFIG_FILE_NAME,
+    PYPROJECT_FILE_NAME,
+    _load_calver_config,
+    describe_settings_files,
+)
 from calver_scm.models import ResolutionReason
 
 if TYPE_CHECKING:
@@ -29,6 +34,8 @@ class CheckCode(StrEnum):
 
     BUILD_CONFIG = "build_config"
     CALVER_CONFIG = "calver_config"
+    SETTINGS_SOURCE = "settings_source"
+    SETTINGS_CONFLICT = "settings_conflict"
     ENV_OVERRIDES = "env_overrides"
     GIT_AVAILABLE = "git_available"
     RESOLUTION = "resolution"
@@ -84,7 +91,10 @@ def diagnose(root: Path) -> DoctorReport:
 
     build_config = _check_build_config(project)
     results.append(build_config)
-    results.append(_check_calver_config(project))
+    calver_config = _check_calver_config(project)
+    results.append(calver_config)
+    if calver_config.severity is Severity.OK:
+        results.extend(_check_settings_files(project))
     results.extend(_check_env_overrides())
 
     git = shutil.which("git")
@@ -118,7 +128,8 @@ def _check_build_config(project: Path) -> Diagnostic:
             "The build configuration cannot be used",
             str(e),
             "Configure [tool.setuptools_scm] or Hatch-VCS with "
-            "version_scheme = 'calver-scm'.",
+            "version_scheme = 'calver-scm', or add a "
+            f"{CONFIG_FILE_NAME} to use the CLI without a {PYPROJECT_FILE_NAME}.",
         )
     return Diagnostic(
         CheckCode.BUILD_CONFIG,
@@ -136,11 +147,38 @@ def _check_calver_config(project: Path) -> Diagnostic:
             Severity.ERROR,
             "The CalVer configuration is invalid",
             str(e),
-            "Fix [tool.calver-scm] in pyproject.toml or the CALVER_SCM_* variables.",
+            f"Fix [tool.calver-scm] in {PYPROJECT_FILE_NAME}, {CONFIG_FILE_NAME} or "
+            "the CALVER_SCM_* variables.",
         )
     return Diagnostic(
         CheckCode.CALVER_CONFIG, Severity.OK, "The CalVer configuration is valid"
     )
+
+
+def _check_settings_files(project: Path) -> list[Diagnostic]:
+    """Say which files supply settings, and warn when they disagree."""
+    files = describe_settings_files(project)
+    results: list[Diagnostic] = []
+    if files.files:
+        results.append(
+            Diagnostic(
+                CheckCode.SETTINGS_SOURCE,
+                Severity.INFO,
+                f"Settings read from {' and '.join(files.files)}",
+            )
+        )
+    if files.conflicts:
+        results.append(
+            Diagnostic(
+                CheckCode.SETTINGS_CONFLICT,
+                Severity.WARNING,
+                f"The same setting is defined in both {PYPROJECT_FILE_NAME} and "
+                f"{CONFIG_FILE_NAME} with different values",
+                f"Keys: {', '.join(files.conflicts)}. {CONFIG_FILE_NAME} wins.",
+                "Keep each setting in one file.",
+            )
+        )
+    return results
 
 
 def _check_env_overrides() -> list[Diagnostic]:
@@ -151,7 +189,7 @@ def _check_env_overrides() -> list[Diagnostic]:
         Diagnostic(
             CheckCode.ENV_OVERRIDES,
             Severity.INFO,
-            "CALVER_SCM_* variables override pyproject.toml",
+            "CALVER_SCM_* variables override the settings files",
             ", ".join(f"{name}={os.environ[name]}" for name in active),
         )
     ]

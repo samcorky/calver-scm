@@ -390,6 +390,44 @@ def test_calver_scm_uses_project_root_from_absolute_root_and_project_path(
     assert captured["root"] == pkg_root.resolve()
 
 
+@pytest.mark.parametrize("anchor_name", ["pyproject.toml", ""], ids=["file", "dir"])
+def test_calver_scm_resolves_config_relative_to_the_pyproject_not_the_cwd(
+    anchor_name: str,
+    monkeypatch: pytest.MonkeyPatch,
+    set_today: Callable[[dt.date], None],
+    tmp_path: Path,
+) -> None:
+    """Read config beside the pyproject.toml even when run from another directory."""
+    project = tmp_path / "project"
+    elsewhere = tmp_path / "elsewhere"
+    project.mkdir()
+    elsewhere.mkdir()
+    monkeypatch.chdir(elsewhere)
+
+    captured: dict[str, Path] = {}
+
+    def fake_load(root: Path) -> CalverConfig:
+        captured["root"] = root
+        return CalverConfig(mode=CalverMode.MONTH)
+
+    monkeypatch.setattr("calver_scm.scheme._load_calver_config", fake_load)
+    set_today(dt.date(2026, 4, 15))
+
+    version: Any = SimpleNamespace(
+        config=SimpleNamespace(
+            root=".",
+            relative_to=project / anchor_name,
+            absolute_root=str(project),
+            project_path=None,
+        ),
+        tag=None,
+        distance=2,
+        dirty=False,
+    )
+    assert calver_scm(version) == "2026.4.0.dev2"
+    assert captured["root"] == project.resolve()
+
+
 def test_calver_scm_uses_current_directory_when_root_missing(
     monkeypatch: pytest.MonkeyPatch,
     set_today: Callable[[dt.date], None],

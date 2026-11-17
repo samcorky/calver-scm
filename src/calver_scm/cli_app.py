@@ -174,14 +174,14 @@ def version(
 ) -> int:
     """Print the full version the project's build would produce.
 
-    Reads the setuptools-scm or Hatch-VCS settings from `pyproject.toml` and asks
-    setuptools-scm, so the result includes your `local_scheme` and any
-    `CALVER_SCM_*` overrides.
+    Reads the setuptools-scm or Hatch-VCS settings from `pyproject.toml`, or the
+    settings in `calver-scm.toml` if there are none, and asks setuptools-scm, so
+    the result includes your `local_scheme` and any `CALVER_SCM_*` overrides.
 
     Parameters
     ----------
     root
-        Project directory containing `pyproject.toml`.
+        Project directory containing `pyproject.toml` or `calver-scm.toml`.
     """
     try:
         resolved = resolve_build_version(root)
@@ -238,7 +238,8 @@ def validate(
         than an existing release. A tag pointing at HEAD is the one being built,
         so it does not count as existing. Needs `--tag` and a full clone.
     root
-        Project directory whose `pyproject.toml` holds `[tool.calver-scm]`.
+        Project directory whose `pyproject.toml` or `calver-scm.toml` holds the
+        settings.
     """
     if against_repo and not tag:
         print("error: --against-repo needs --tag", file=sys.stderr)
@@ -317,7 +318,8 @@ def parse(
         avoid moving a tag such as `latest` backwards. JSON and plain output
         only; GitHub output omits it. Needs `--tag` and a full clone.
     root
-        Project directory whose `pyproject.toml` holds `[tool.calver-scm]`.
+        Project directory whose `pyproject.toml` or `calver-scm.toml` holds the
+        settings.
     """
     if against_repo and not tag:
         print("error: --against-repo needs --tag", file=sys.stderr)
@@ -366,7 +368,7 @@ def explain(
     Parameters
     ----------
     root
-        Project directory containing `pyproject.toml`.
+        Project directory containing `pyproject.toml` or `calver-scm.toml`.
     """
     try:
         explanation = explain_build_version(root)
@@ -406,7 +408,7 @@ def doctor(
     Parameters
     ----------
     root
-        Project directory containing `pyproject.toml`.
+        Project directory containing `pyproject.toml` or `calver-scm.toml`.
     """
     report = diagnose(root)
     output.report(report)
@@ -478,7 +480,7 @@ def next_tag(
 
     `--pre`, `--promote` and `--post` cannot be combined.
     root
-        Project directory containing `pyproject.toml`.
+        Project directory containing `pyproject.toml` or `calver-scm.toml`.
     """
     if sum((pre is not None, promote, post)) > 1:
         print("error: --pre, --promote and --post cannot be combined", file=sys.stderr)
@@ -564,7 +566,7 @@ def tags(
     Parameters
     ----------
     root
-        Project directory containing `pyproject.toml`.
+        Project directory containing `pyproject.toml` or `calver-scm.toml`.
     """
     try:
         config = _load_calver_config(root.resolve())

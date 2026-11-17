@@ -23,6 +23,13 @@ def _resolve_project_root(version: ScmVersion) -> Path:
     if absolute_root is not None and project_path is not None:
         return (Path(absolute_root) / Path(project_path)).resolve()
 
+    relative_to: Path | str | None = getattr(config, "relative_to", None)
+    if relative_to is not None:
+        anchor = Path(relative_to)
+        # setuptools-scm treats `relative_to` as a file whose directory `root`
+        # is relative to; the project's settings live beside it.
+        return (anchor if anchor.is_dir() else anchor.parent).resolve()
+
     root = getattr(config, "root", None) if config is not None else None
     return Path(root or ".").resolve()
 

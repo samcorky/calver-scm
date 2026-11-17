@@ -129,17 +129,22 @@ def render_explanation(payload: Payload) -> None:
         )
     )
 
-    facts = [
-        ("SCM", scm),
-        ("Calculation", calc),
-        ("Configuration", payload["config"]),
-    ]
-    # Three equal panels side by side when they fit, otherwise stacked full width.
+    # SCM and Calculation sit side by side when they fit, otherwise stacked.
+    facts = [("SCM", scm), ("Calculation", calc)]
     side_by_side = out.width >= MIN_WIDTH_FOR_COLUMNS
     width = (out.width - 2) // len(facts) if side_by_side else out.width
     height = max(len(rows) for _, rows in facts) + 2 if side_by_side else None
     panels = [_facts(title, rows, width, height) for title, rows in facts]
     out.print(Columns(panels, padding=(0, 1)) if side_by_side else Group(*panels))
+    # Configuration always has its own row: its source column needs the width.
+    out.print(
+        _facts(
+            "Configuration",
+            payload["config"],
+            out.width,
+            sources=payload["config_sources"],
+        )
+    )
 
     if payload["env_overrides"]:
         out.print(
@@ -161,12 +166,21 @@ def _facts(
     height: int | None = None,
     *,
     humanise: bool = True,
+    sources: Payload | None = None,
 ) -> Panel:
     table = Table.grid(padding=(0, 2))
     table.add_column(style="cyan", no_wrap=True)
     table.add_column()
+    if sources is not None:
+        table.add_column(style="dim")
     for key, value in rows.items():
-        table.add_row(key.replace("_", " ") if humanise else key, value_text(value))
+        cells: list[RenderableType] = [
+            key.replace("_", " ") if humanise else key,
+            value_text(value),
+        ]
+        if sources is not None:
+            cells.append(Text(sources[key]))
+        table.add_row(*cells)
     return Panel(
         table,
         title=title,

@@ -9,9 +9,15 @@ from typing import TYPE_CHECKING, Any
 from setuptools_scm import get_version
 
 from calver_scm.calver_version import CalverVersion
-from calver_scm.scheme import resolve_scm_version
+from calver_scm.config import (
+    CONFIG_FILE_NAME,
+    load_calver_config_with_sources,
+    read_settings_file,
+)
+from calver_scm.scheme import _resolve_project_root, resolve_scm_version
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
     from pathlib import Path
 
     from setuptools_scm.version import ScmVersion
@@ -39,6 +45,7 @@ class BuildExplanation:
     resolution: VersionResolution
     config: CalverConfig
     env_overrides: tuple[tuple[str, str], ...]
+    config_sources: Mapping[str, str]
 
     @property
     def local_segment(self) -> str | None:
@@ -63,11 +70,13 @@ def explain_build_version(root: Path) -> BuildExplanation:
     same `resolve_scm_version` path as a real build and the result is recorded.
     """
     options = _checked_options(root)
-    captured: list[tuple[VersionResolution, CalverConfig]] = []
+    captured: list[tuple[VersionResolution, CalverConfig, Mapping[str, str]]] = []
 
     def capturing_scheme(version: ScmVersion) -> str:
         resolution, config = resolve_scm_version(version)
-        captured.append((resolution, config))
+        # Cached, so this reads the same layers `resolve_scm_version` just used.
+        _, sources = load_calver_config_with_sources(_resolve_project_root(version))
+        captured.append((resolution, config, sources))
         return resolution.public_version
 
     options["version_scheme"] = capturing_scheme
@@ -77,36 +86,79 @@ def explain_build_version(root: Path) -> BuildExplanation:
             "setuptools-scm did not call the calver-scm version scheme; a pretend "
             "version override such as SETUPTOOLS_SCM_PRETEND_VERSION may be set"
         )
-    resolution, config = captured[-1]
+    resolution, config, sources = captured[-1]
     overrides = tuple(
         sorted((k, v) for k, v in os.environ.items() if k.startswith("CALVER_SCM_"))
     )
-    return BuildExplanation(full_version, resolution, config, overrides)
+    return BuildExplanation(full_version, resolution, config, overrides, sources)
 
 
 def _checked_options(root: Path) -> dict[str, Any]:
-    """Read the project's setuptools-scm settings and require the CalVer scheme."""
+    """Read the project's setuptools-scm settings and require the CalVer scheme.
+
+    A build section in `pyproject.toml` takes priority, so the CLI reports what a
+    real build would. Without one, options are synthesised from `calver-scm.toml`.
+    """
     project_root = root.resolve()
     pyproject = project_root / "pyproject.toml"
     try:
         with pyproject.open("rb") as f:
-            data = tomllib.load(f)
-    except FileNotFoundError as e:
-        raise ResolutionError(f"No pyproject.toml found in {project_root}") from e
+            data: dict[str, Any] | None = tomllib.load(f)
+    except FileNotFoundError:
+        data = None
     except tomllib.TOMLDecodeError as e:
         raise ResolutionError(f"Invalid TOML in {pyproject}: {e}") from e
 
-    options = _build_options(data, project_root, pyproject)
-    scheme = options.get("version_scheme")
-    if scheme != SCHEME_NAME:
-        raise ResolutionError(
-            f"{pyproject} configures version_scheme={scheme!r}, not {SCHEME_NAME!r}; "
-            f"set version_scheme = {SCHEME_NAME!r} in the build integration settings"
-        )
+    options = None if data is None else _build_options(data, project_root, pyproject)
+    if options is not None:
+        scheme = options.get("version_scheme")
+        if scheme != SCHEME_NAME:
+            raise ResolutionError(
+                f"{pyproject} configures version_scheme={scheme!r}, "
+                f"not {SCHEME_NAME!r}; set version_scheme = {SCHEME_NAME!r} in "
+                "the build integration settings"
+            )
+    else:
+        options = _calver_scm_toml_options(project_root)
+        if options is None:
+            raise ResolutionError(_no_configuration_message(project_root, data))
 
     for key in _WRITE_OPTIONS:
         options.pop(key, None)
     return options
+
+
+def _calver_scm_toml_options(project_root: Path) -> dict[str, Any] | None:
+    """Synthesise `get_version` keywords from `calver-scm.toml`, if it exists."""
+    try:
+        settings = read_settings_file(project_root)
+    except RuntimeError as e:
+        raise ResolutionError(str(e)) from e
+    if settings is None:
+        return None
+    options: dict[str, Any] = {
+        "version_scheme": SCHEME_NAME,
+        "root": str(project_root),
+    }
+    if "local_scheme" in settings:
+        local_scheme = settings["local_scheme"]
+        if not isinstance(local_scheme, str):
+            raise ResolutionError(
+                f"{CONFIG_FILE_NAME} sets local_scheme={local_scheme!r}; "
+                "it must be a string"
+            )
+        options["local_scheme"] = local_scheme
+    return options
+
+
+def _no_configuration_message(project_root: Path, data: dict[str, Any] | None) -> str:
+    if data is None:
+        return f"No pyproject.toml or {CONFIG_FILE_NAME} found in {project_root}"
+    return (
+        f"No setuptools-scm configuration found in {project_root / 'pyproject.toml'}: "
+        "expected [tool.setuptools_scm] or [tool.hatch.version] with source = "
+        f"'vcs', or add a {CONFIG_FILE_NAME}"
+    )
 
 
 def _get_version(options: dict[str, Any]) -> str:
@@ -121,8 +173,11 @@ def _get_version(options: dict[str, Any]) -> str:
 
 def _build_options(
     data: dict[str, Any], project_root: Path, pyproject: Path
-) -> dict[str, Any]:
-    """Translate the project's build settings into `get_version` keywords."""
+) -> dict[str, Any] | None:
+    """Translate the project's build settings into `get_version` keywords.
+
+    Returns `None` when the project has no setuptools-scm or Hatch-VCS section.
+    """
     tool: dict[str, Any] = data.get("tool", {})
 
     if "setuptools_scm" in tool:
@@ -146,10 +201,7 @@ def _build_options(
             options["fallback_version"] = fallback
         return options
 
-    raise ResolutionError(
-        f"No setuptools-scm configuration found in {pyproject}: expected "
-        "[tool.setuptools_scm] or [tool.hatch.version] with source = 'vcs'"
-    )
+    return None
 
 
 def _normalise_keys(table: dict[str, Any]) -> dict[str, Any]:

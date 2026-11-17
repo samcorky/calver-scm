@@ -9,7 +9,11 @@ from calver_scm.config import (
     CalverConfig,
     CalverMode,
     FallbackMode,
+    SettingsFiles,
     _load_calver_config,
+    describe_settings_files,
+    load_calver_config_with_sources,
+    read_settings_file,
 )
 
 if TYPE_CHECKING:
@@ -318,3 +322,131 @@ def test_scheme_rejects_zero_padded_tokens(scheme: str) -> None:
     """Reject zero-padded tokens as invalid schemes."""
     with pytest.raises(ValueError, match="unknown token"):
         CalverConfig(scheme=scheme)
+
+
+def _write(root: Path, name: str, text: str) -> None:
+    (root / name).write_text(text, encoding="utf-8")
+
+
+def test_calver_scm_toml_overrides_pyproject(tmp_path: Path) -> None:
+    """Layer calver-scm.toml over [tool.calver-scm], recording each source."""
+    _write(
+        tmp_path,
+        "pyproject.toml",
+        '[tool.calver-scm]\ntag_prefix = "a"\nstable = false\n',
+    )
+    _write(tmp_path, "calver-scm.toml", 'tag_prefix = "b"\n')
+
+    cfg, sources = load_calver_config_with_sources(tmp_path)
+
+    assert cfg.tag_prefix == "b"
+    assert cfg.stable is False
+    assert sources["tag_prefix"] == "calver-scm.toml"
+    assert sources["stable"] == "pyproject.toml"
+    assert sources["mode"] == "default"
+    assert set(sources) == {
+        "mode",
+        "scheme",
+        "patch",
+        "stable",
+        "no_dev",
+        "fallback",
+        "tag_prefix",
+        "timezone",
+    }
+
+
+def test_env_overrides_files_and_is_labelled(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Environment variables win over both files and are named as the source."""
+    _write(tmp_path, "calver-scm.toml", 'tag_prefix = "b"\n')
+    monkeypatch.setenv("CALVER_SCM_TAG_PREFIX", "c")
+
+    cfg, sources = load_calver_config_with_sources(tmp_path)
+
+    assert cfg.tag_prefix == "c"
+    assert sources["tag_prefix"] == "env CALVER_SCM_TAG_PREFIX"
+
+
+def test_calver_scm_toml_alone_without_pyproject(tmp_path: Path) -> None:
+    """Read settings from calver-scm.toml when there is no pyproject.toml."""
+    _write(tmp_path, "calver-scm.toml", "stable = false\n")
+    assert _load_calver_config(tmp_path).stable is False
+
+
+def test_empty_calver_scm_toml_gives_defaults(tmp_path: Path) -> None:
+    """An empty calver-scm.toml is valid and leaves every default in place."""
+    _write(tmp_path, "calver-scm.toml", "")
+    cfg, sources = load_calver_config_with_sources(tmp_path)
+    assert cfg == CalverConfig()
+    assert set(sources.values()) == {"default"}
+
+
+def test_invalid_calver_scm_toml_raises(tmp_path: Path) -> None:
+    """Wrap calver-scm.toml decode failures in a runtime error."""
+    _write(tmp_path, "calver-scm.toml", "stable = \n")
+    with pytest.raises(RuntimeError, match=r"Invalid calver-scm\.toml"):
+        _load_calver_config(tmp_path)
+
+
+def test_invalid_value_in_calver_scm_toml_raises(tmp_path: Path) -> None:
+    """Validate values read from calver-scm.toml like any other layer."""
+    _write(tmp_path, "calver-scm.toml", 'mode = "nope"\n')
+    with pytest.raises(RuntimeError, match="Invalid config"):
+        _load_calver_config(tmp_path)
+
+
+def test_unknown_keys_in_calver_scm_toml_are_ignored(tmp_path: Path) -> None:
+    """Build keys such as local_scheme do not disturb the CalVer settings."""
+    _write(tmp_path, "calver-scm.toml", 'local_scheme = "no-local-version"\n')
+    assert _load_calver_config(tmp_path) == CalverConfig()
+
+
+def test_read_settings_file_missing_returns_none(tmp_path: Path) -> None:
+    """Report an absent calver-scm.toml as None, not an empty table."""
+    assert read_settings_file(tmp_path) is None
+
+
+def test_read_settings_file_returns_the_table(tmp_path: Path) -> None:
+    """Return the parsed top-level table, including build keys."""
+    _write(tmp_path, "calver-scm.toml", 'local_scheme = "x"\n')
+    assert read_settings_file(tmp_path) == {"local_scheme": "x"}
+
+
+def test_describe_settings_files_with_no_files(tmp_path: Path) -> None:
+    """Name no files and no conflicts when nothing configures calver-scm."""
+    assert describe_settings_files(tmp_path) == SettingsFiles((), ())
+
+
+def test_describe_settings_files_ignores_pyproject_without_calver_table(
+    tmp_path: Path,
+) -> None:
+    """A pyproject.toml with no [tool.calver-scm] table supplies no settings."""
+    _write(tmp_path, "pyproject.toml", "[project]\nname = 'x'\n")
+    assert describe_settings_files(tmp_path).files == ()
+
+
+def test_describe_settings_files_lists_both_in_precedence_order(
+    tmp_path: Path,
+) -> None:
+    """List pyproject.toml before calver-scm.toml, the order they are applied."""
+    _write(tmp_path, "pyproject.toml", "[tool.calver-scm]\nstable = false\n")
+    _write(tmp_path, "calver-scm.toml", "")
+    assert describe_settings_files(tmp_path).files == (
+        "pyproject.toml",
+        "calver-scm.toml",
+    )
+
+
+def test_describe_settings_files_reports_differing_values_only(
+    tmp_path: Path,
+) -> None:
+    """Flag a key set differently in both files, not one set identically."""
+    _write(
+        tmp_path,
+        "pyproject.toml",
+        '[tool.calver-scm]\ntag_prefix = "a"\nstable = false\n',
+    )
+    _write(tmp_path, "calver-scm.toml", 'tag_prefix = "b"\nstable = false\n')
+    assert describe_settings_files(tmp_path).conflicts == ("tag_prefix",)

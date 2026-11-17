@@ -173,3 +173,98 @@ def test_commits_since_reports_an_unreadable_repository(tmp_path: Path) -> None:
     """Raise a resolution error when git cannot compare the tag with HEAD."""
     with pytest.raises(ResolutionError, match="Could not compare v1 with HEAD"):
         commits_since(tmp_path, "v1")
+
+
+def _write_settings(root: Path, text: str) -> Path:
+    (root / "calver-scm.toml").write_text(text, encoding="utf-8")
+    return root
+
+
+def test_options_are_synthesised_from_calver_scm_toml(
+    tmp_path: Path, captured: dict[str, Any]
+) -> None:
+    """Resolve with no pyproject.toml: only the scheme and root are passed."""
+    root = _write_settings(tmp_path, "")
+    assert resolve_build_version(root) == "1.2.3"
+    assert captured == {"version_scheme": "calver-scm", "root": str(root.resolve())}
+
+
+def test_local_scheme_is_passed_through_from_calver_scm_toml(
+    tmp_path: Path, captured: dict[str, Any]
+) -> None:
+    """Honour local_scheme, the one build option calver-scm.toml may set."""
+    root = _write_settings(tmp_path, 'local_scheme = "no-local-version"\n')
+    resolve_build_version(root)
+    assert captured["local_scheme"] == "no-local-version"
+
+
+def test_non_string_local_scheme_is_rejected(
+    tmp_path: Path, captured: dict[str, Any]
+) -> None:
+    """Refuse a local_scheme that is not a string before calling setuptools-scm."""
+    root = _write_settings(tmp_path, "local_scheme = 3\n")
+    with pytest.raises(ResolutionError, match=r"calver-scm\.toml.*local_scheme"):
+        resolve_build_version(root)
+    assert captured == {}
+
+
+def test_pyproject_build_section_wins_over_calver_scm_toml(
+    tmp_path: Path, captured: dict[str, Any]
+) -> None:
+    """Mirror the real build: pyproject.toml's build options take priority."""
+    root = _write(
+        tmp_path,
+        '[tool.setuptools_scm]\nversion_scheme = "calver-scm"\n'
+        'local_scheme = "dirty-tag"\n',
+    )
+    _write_settings(root, 'local_scheme = "no-local-version"\n')
+    resolve_build_version(root)
+    assert captured["local_scheme"] == "dirty-tag"
+    assert "relative_to" in captured
+
+
+def test_pyproject_without_build_section_falls_back_to_calver_scm_toml(
+    tmp_path: Path, captured: dict[str, Any]
+) -> None:
+    """A pyproject.toml that only names the project does not block the fallback."""
+    root = _write(tmp_path, '[project]\nname = "demo"\n')
+    _write_settings(root, "")
+    resolve_build_version(root)
+    assert captured == {"version_scheme": "calver-scm", "root": str(root.resolve())}
+
+
+def test_other_scheme_in_pyproject_is_still_rejected_with_calver_scm_toml(
+    tmp_path: Path, captured: dict[str, Any]
+) -> None:
+    """The real build would not use calver-scm, so the CLI must not pretend to."""
+    root = _write(
+        tmp_path, '[tool.setuptools_scm]\nversion_scheme = "guess-next-dev"\n'
+    )
+    _write_settings(root, "")
+    with pytest.raises(ResolutionError, match="not 'calver-scm'"):
+        resolve_build_version(root)
+    assert captured == {}
+
+
+def test_invalid_calver_scm_toml_is_rejected(tmp_path: Path) -> None:
+    """Report malformed calver-scm.toml instead of a raw parser error."""
+    root = _write_settings(tmp_path, "stable = \n")
+    with pytest.raises(ResolutionError, match=r"Invalid calver-scm\.toml"):
+        resolve_build_version(root)
+
+
+def test_missing_files_error_mentions_both_options(tmp_path: Path) -> None:
+    """Tell the user about calver-scm.toml when no configuration exists."""
+    with pytest.raises(ResolutionError) as excinfo:
+        resolve_build_version(tmp_path)
+    assert "pyproject.toml" in str(excinfo.value)
+    assert "calver-scm.toml" in str(excinfo.value)
+
+
+def test_missing_build_section_error_mentions_calver_scm_toml(
+    tmp_path: Path,
+) -> None:
+    """Suggest calver-scm.toml when pyproject.toml has no build section."""
+    root = _write(tmp_path, '[project]\nname = "demo"\n')
+    with pytest.raises(ResolutionError, match=r"calver-scm\.toml"):
+        resolve_build_version(root)
