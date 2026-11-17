@@ -445,14 +445,18 @@ A project that does not build a Python package (for example an app installed fro
 
 ```toml
 # calver-scm.toml, at the repository root; no pyproject.toml needed
-stable     = false
-tag_prefix = "v"
+tag_prefix   = "v"
+local_scheme = "no-local-version"  # omit the +g<hash> suffix, for a clean version
 ```
 
 ```console
+$ git describe --tags   # two commits after v2026.11.0
+v2026.11.0-2-g1a2b3c4
 $ calver-scm --format plain version
 2026.11.1.dev2
 ```
+
+Without `local_scheme`, setuptools-scm's default (`node-and-date`) applies, as it does for a `pyproject.toml` that sets none, so the same commit gives `2026.11.1.dev2+g1a2b3c4`. A project that passes the version to a build, for example as a Docker build argument, usually wants `no-local-version`.
 
 - The file is optional, and an empty one is valid. It takes every key from `[tool.calver-scm]`, plus `local_scheme` (see [Local scheme](#local-scheme)), which the CLI otherwise reads from `[tool.setuptools_scm]`. Unknown keys are ignored.
 - Settings are layered, lowest to highest: `[tool.calver-scm]` in `pyproject.toml`, then `calver-scm.toml`, then the `CALVER_SCM_*` variables. A project can use both files; `calver-scm doctor` warns when a key has a different value in each.
