@@ -555,9 +555,10 @@ The `reason` is one of:
 
 ```bash
 calver-scm doctor
+calver-scm doctor --strict   # exit 1 on warnings too, for CI
 ```
 
-Runs independent checks and carries on past failures: whether the build configuration uses the calver-scm scheme, whether `[tool.calver-scm]` and the environment overrides are valid, whether Git is available, whether the version resolves, and warnings for shallow clones, a missing compatible tag, and `no_dev` combined with a local segment. Each finding has a code, a severity (`ok`, `info`, `warning` or `error`) and, where useful, a suggested fix. Warnings never fail the command; errors do. Error details can include file paths.
+Runs independent checks and carries on past failures: whether the build configuration uses the calver-scm scheme, whether `[tool.calver-scm]` and the environment overrides are valid, whether Git is available, whether the version resolves, and warnings for shallow clones, a missing compatible tag, and `no_dev` combined with a local segment. Each finding has a code, a severity (`ok`, `info`, `warning` or `error`) and, where useful, a suggested fix. Warnings never fail the command unless you pass `--strict`, which makes a warning exit `1` like an error (`info` findings never fail it); the report itself is the same either way. Errors always fail. Error details can include file paths.
 
 ### Planning the next release tag
 
@@ -707,8 +708,8 @@ To gate a tag-push workflow instead, check the tag against the repository first;
 
 | Code | Meaning |
 | --- | --- |
-| `0` | Success. For `validate`, the input is valid. For `doctor`, no errors (warnings are allowed). |
-| `1` | `validate`: the input is invalid. `doctor`: errors were found. |
+| `0` | Success. For `validate`, the input is valid. For `doctor`, no errors (warnings are allowed unless `--strict`). |
+| `1` | `validate`: the input is invalid. `doctor`: errors were found, or warnings with `--strict`. |
 | `2` | Invalid usage, invalid configuration, or the version could not be resolved. `--format github` without `GITHUB_OUTPUT`, or on a command that does not support it, is invalid usage. |
 | `3` | `validate --against-repo` and `parse --against-repo`: a shallow clone. `next-tag`: no safe tag can be proposed (a shallow clone, `patch = false` with the period already released, `--promote` with nothing to promote, or `--post` with no release in the period). |
 
