@@ -19,7 +19,7 @@ from calver_scm.cli_support import (
     list_local_tags,
     resolve_build_version,
 )
-from calver_scm.config import _load_calver_config
+from calver_scm.config import CalverConfig, _load_calver_config
 from calver_scm.diagnostics import Severity, diagnose
 from calver_scm.models import ResolutionReason
 from calver_scm.release import (
@@ -32,6 +32,7 @@ from calver_scm.release import (
 from calver_scm.utils import _today_in_timezone
 from calver_scm.validation import (
     ValidationResult,
+    is_other_stability,
     newest_in_scopes,
     validate_against_repo,
     validate_version,
@@ -291,10 +292,20 @@ def validate(
 
 def _validate_each(
     values: list[str], root: Path, *, tag: bool
-) -> list[ValidationResult]:
+) -> tuple[CalverConfig, list[ValidationResult]]:
     """Validate every input against the project's scheme; no I/O beyond the settings."""
     config = _load_calver_config(root.resolve())
-    return [validate_version(value, config, is_tag=tag) for value in values]
+    return config, [validate_version(value, config, is_tag=tag) for value in values]
+
+
+def _skipped_note(count: int, *, stable: bool) -> str:
+    """Say what `sort --skip-other-stability` left out, and why."""
+    noun = "version" if count == 1 else "versions"
+    prefix = "a leading" if stable else "no"
+    return (
+        f"note: skipped {count} {noun} with {prefix} '0.' prefix, which does not "
+        f"fit stable = {str(stable).lower()}"
+    )
 
 
 _ORDER_EPILOGUE = """\
@@ -347,7 +358,7 @@ def compare(
         settings.
     """
     try:
-        results = _validate_each([a, b], root, tag=tag)
+        _, results = _validate_each([a, b], root, tag=tag)
     except (RuntimeError, ResolutionError) as e:
         print(f"error: {e}", file=sys.stderr)
         return EXIT_RESOLUTION_ERROR
@@ -368,12 +379,19 @@ def compare(
 ```
 calver-scm sort 2026.4.10 2026.4.2 2026.4.3rc1
 git tag | calver-scm sort --tag --reverse | head -1   # the newest tag
+git tag | calver-scm sort --tag -R --skip-other-stability | head -1
 calver-scm --json sort 2026.4.3 2026.4.2
 ```
 
 With no versions on the command line they are read from standard input, one per
 line, and blank lines are skipped. Each is printed as it was written, so tags keep
 their prefix.
+
+After a project changes `stable`, its older tags carry (or lack) the `0.` prefix the
+new setting rejects. `--skip-other-stability` leaves those out, as `tags` and
+`next-tag` do, and says how many on stderr. Anything else invalid still fails.
+Older tags always order below newer stable ones, so skipping them never changes
+which tag is newest.
 
 {_ORDER_EPILOGUE}
 
@@ -389,6 +407,12 @@ def sort(
         bool,
         cyclopts.Parameter(name=("--reverse", "-R"), negative="", show_default=False),
     ] = False,
+    skip_other_stability: Annotated[
+        bool,
+        cyclopts.Parameter(
+            name="--skip-other-stability", negative="", show_default=False
+        ),
+    ] = False,
     root: RootOption = Path(),
     output: OutputParameter,
 ) -> int:
@@ -402,6 +426,9 @@ def sort(
         Treat the inputs as Git tags that include the configured tag prefix.
     reverse
         Newest first.
+    skip_other_stability
+        Leave out versions whose only problem is a `0.` prefix that disagrees with
+        the `stable` setting, such as the tags from before the project went stable.
     root
         Project directory whose `pyproject.toml` or `calver-scm.toml` holds the
         settings.
@@ -413,10 +440,18 @@ def sort(
         print("error: no versions to sort", file=sys.stderr)
         return EXIT_RESOLUTION_ERROR
     try:
-        results = _validate_each(values, root, tag=tag)
+        config, results = _validate_each(values, root, tag=tag)
     except (RuntimeError, ResolutionError) as e:
         print(f"error: {e}", file=sys.stderr)
         return EXIT_RESOLUTION_ERROR
+    if skip_other_stability:
+        skipped = [r for r in results if is_other_stability(r)]
+        results = [r for r in results if not is_other_stability(r)]
+        if skipped:
+            print(_skipped_note(len(skipped), stable=config.stable), file=sys.stderr)
+        if not results:
+            print("error: no versions left to sort", file=sys.stderr)
+            return EXIT_RESOLUTION_ERROR
     invalid = next((r for r in results if not r.valid), None)
     if invalid is not None:
         output.validation(invalid)

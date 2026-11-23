@@ -169,6 +169,23 @@ def validate_version(
     )
 
 
+_STABILITY_CODES = frozenset(
+    {IssueCode.UNEXPECTED_STABILITY_PREFIX, IssueCode.MISSING_STABILITY_PREFIX}
+)
+
+
+def is_other_stability(result: ValidationResult) -> bool:
+    """Whether the only problem is a `0.` prefix that disagrees with `stable`.
+
+    That is what a project's older tags look like after it moves between
+    `stable = false` and `stable = true`: valid then, ignored now. Anything
+    else wrong with the input is a real mistake and does not count.
+    """
+    return bool(result.issues) and all(
+        issue.code in _STABILITY_CODES for issue in result.issues
+    )
+
+
 def version_order_key(result: ValidationResult) -> CalverVersion:
     """The PEP 440 version a valid result is ordered by, without any tag prefix."""
     if result.parts is None:  # pragma: no cover - callers pass valid results
