@@ -438,6 +438,8 @@ describe_command = "git describe --dirty --tags --long --match api-v*"
 raw-options = { scm.git.describe_command = "git describe --dirty --tags --long --match api-v*" }
 ```
 
+setuptools-scm's own `[tool.setuptools_scm.tag] prefix = "api-v"` does the same and the CLI reads it too; `tag.prefix` and `tag.regex` are supported, other `tag` keys give an error.
+
 `calver-scm doctor` warns (`foreign_build_tag`) when the nearest tag is not the project's own and shows these lines with your prefix filled in. It stays quiet once you set a describe command. The `.devN` number still counts every commit since the tag, including other packages' commits.
 
 ### `timezone`
