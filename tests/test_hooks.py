@@ -148,6 +148,15 @@ def test_action_never_interpolates_inputs_into_the_shell() -> None:
 
 
 @pytest.mark.unit
+def test_action_variables_are_not_read_as_calver_scm_settings() -> None:
+    """The CLI reads every CALVER_SCM_* variable, so the script must not set one."""
+    action = load("action.yml")
+    names = [name for step in action["runs"]["steps"] for name in step.get("env", {})]
+    assert names
+    assert [n for n in names if n.startswith("CALVER_SCM_")] == []
+
+
+@pytest.mark.unit
 def test_action_inputs_and_outputs_are_documented_and_wired() -> None:
     """Describe every input and output, and take outputs from the run step."""
     action = load("action.yml")
@@ -192,7 +201,7 @@ CASE_ENV = {
     "AGAINST_REPO": "false",
     "ROOT": ".",
     "SUMMARY": "true",
-    "CALVER_SCM_VERSION": "",
+    "INPUT_CALVER_SCM_VERSION": "",
 }
 
 
@@ -274,11 +283,11 @@ bash_only = pytest.mark.skipif(
             "uvx --from calver-scm[cli] calver-scm --summary tags --root .",
         ),
         (
-            {"CALVER_SCM_VERSION": "1.11.1"},
+            {"INPUT_CALVER_SCM_VERSION": "1.11.1"},
             "uvx --from calver-scm[cli]==1.11.1 calver-scm --summary doctor --root .",
         ),
         (
-            {"CALVER_SCM_VERSION": "installed"},
+            {"INPUT_CALVER_SCM_VERSION": "installed"},
             "calver-scm --summary doctor --root .",
         ),
     ],
@@ -303,8 +312,8 @@ def test_action_builds_the_command_line(
         ({"COMMAND": "validate"}, "needs the tag input"),
         ({"COMMAND": "parse", "TAG": ""}, "needs the tag input"),
         ({"COMMAND": "validate", "TAG": "--root"}, "must not start with"),
-        ({"CALVER_SCM_VERSION": "1.0 --index-url x"}, "not a version"),
-        ({"CALVER_SCM_VERSION": "latest; rm"}, "not a version"),
+        ({"INPUT_CALVER_SCM_VERSION": "1.0 --index-url x"}, "not a version"),
+        ({"INPUT_CALVER_SCM_VERSION": "latest; rm"}, "not a version"),
     ],
 )
 def test_action_rejects_bad_inputs_before_running_anything(

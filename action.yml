@@ -87,7 +87,7 @@ runs:
         AGAINST_REPO: ${{ inputs.against-repo }}
         ROOT: ${{ inputs.root }}
         SUMMARY: ${{ inputs.summary }}
-        CALVER_SCM_VERSION: ${{ inputs.calver-scm-version }}
+        INPUT_CALVER_SCM_VERSION: ${{ inputs.calver-scm-version }}
       run: |
         set -euo pipefail
 
@@ -133,13 +133,13 @@ runs:
         esac
         args+=(--root "$ROOT")
 
-        if [[ "$CALVER_SCM_VERSION" == "installed" ]]; then
+        if [[ "$INPUT_CALVER_SCM_VERSION" == "installed" ]]; then
           exec calver-scm "${args[@]}"
         fi
         spec="calver-scm[cli]"
-        if [[ -n "$CALVER_SCM_VERSION" ]]; then
-          [[ "$CALVER_SCM_VERSION" =~ ^[0-9][0-9A-Za-z.+!_-]*$ ]] \
-            || fail "calver-scm-version '${CALVER_SCM_VERSION}' is not a version such as 1.11.1."
-          spec+="==${CALVER_SCM_VERSION}"
+        if [[ -n "$INPUT_CALVER_SCM_VERSION" ]]; then
+          [[ "$INPUT_CALVER_SCM_VERSION" =~ ^[0-9][0-9A-Za-z.+!_-]*$ ]] \
+            || fail "calver-scm-version '${INPUT_CALVER_SCM_VERSION}' is not a version such as 1.11.1."
+          spec+="==${INPUT_CALVER_SCM_VERSION}"
         fi
         exec uvx --from "$spec" calver-scm "${args[@]}"

@@ -414,6 +414,7 @@ def test_explain_reports_exact_tag_and_environment_overrides(
 ) -> None:
     """Report a clean tag as is, and list the active CALVER_SCM_* variables."""
     monkeypatch.setenv("CALVER_SCM_NO_DEV", "true")
+    monkeypatch.setenv("CALVER_SCM_VERSION", "installed")
     project = make_git_project(SETUPTOOLS, tag="v2026.04.2")
     assert main(["--json", "explain", "--root", str(project)]) == 0
     data = json.loads(capsys.readouterr().out)

@@ -11,6 +11,7 @@ from setuptools_scm import get_version
 from calver_scm.calver_version import CalverVersion
 from calver_scm.config import (
     CONFIG_FILE_NAME,
+    SETTING_ENV_VARS,
     load_calver_config_with_sources,
     read_settings_file,
 )
@@ -88,7 +89,7 @@ def explain_build_version(root: Path) -> BuildExplanation:
         )
     resolution, config, sources = captured[-1]
     overrides = tuple(
-        sorted((k, v) for k, v in os.environ.items() if k.startswith("CALVER_SCM_"))
+        sorted((k, v) for k, v in os.environ.items() if k in SETTING_ENV_VARS)
     )
     return BuildExplanation(full_version, resolution, config, overrides, sources)
 

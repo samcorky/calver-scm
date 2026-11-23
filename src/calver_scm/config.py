@@ -26,6 +26,9 @@ CALVER_FIELDS = (
     "timezone",
 )
 
+# The only CALVER_SCM_* variables that are settings; any other is not read.
+SETTING_ENV_VARS = frozenset(f"CALVER_SCM_{field.upper()}" for field in CALVER_FIELDS)
+
 
 TRUE_ENV_VALUES = frozenset(("1", "true", "yes", "on"))
 FALSE_ENV_VALUES = frozenset(("0", "false", "no", "off"))

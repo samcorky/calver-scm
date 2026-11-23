@@ -870,7 +870,8 @@ Errors are always plain text on stderr, whatever the format, and leave stdout em
 | `calver_config` | `ok` or `error` | `[tool.calver-scm]`, `calver-scm.toml` and the `CALVER_SCM_*` variables are valid. |
 | `settings_source` | `info` | Which of `pyproject.toml` and `calver-scm.toml` supplied settings. Omitted when neither does. |
 | `settings_conflict` | `warning` | A key has a different value in `pyproject.toml` and `calver-scm.toml`; `calver-scm.toml` wins. |
-| `env_overrides` | `info` | `CALVER_SCM_*` variables are overriding the settings files. |
+| `env_overrides` | `info` | `CALVER_SCM_*` setting variables are overriding the settings files. |
+| `unknown_env_overrides` | `warning` | `CALVER_SCM_*` variables that are not settings, such as `CALVER_SCM_PREFIX` for `CALVER_SCM_TAG_PREFIX`, which are ignored. |
 | `git_available` | `ok` or `error` | Git is installed and on `PATH`. |
 | `resolution` | `ok` or `error` | The version resolves. Skipped when `build_config` fails. |
 | `shallow_checkout` | `warning` | A shallow clone, so tags and commit distance may be missing. |
