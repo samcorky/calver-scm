@@ -1,6 +1,7 @@
 name: Bug report
 description: Report incorrect or unexpected behaviour in calver-scm
 title: "[bug] "
+type: Bug
 labels:
   - bug
 body:
