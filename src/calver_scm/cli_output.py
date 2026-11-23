@@ -8,10 +8,12 @@ from enum import StrEnum
 from typing import TYPE_CHECKING, Any
 
 from calver_scm.cli_rich import (
+    render_compared,
     render_explanation,
     render_next_tag,
     render_parsed,
     render_report,
+    render_sorted,
     render_tags,
     render_validation,
     render_version,
@@ -137,6 +139,16 @@ class Output:
             render_validation,
             _md_validation(title, payload),
         )
+
+    def compared(self, a: str, b: str, order: str) -> None:
+        """Write how two versions order: `less`, `equal` or `greater`."""
+        payload: Payload = {"a": a, "b": b, "order": order}
+        self._emit(payload, order, render_compared, _md_fields("compare", payload))
+
+    def sorted_versions(self, versions: list[str]) -> None:
+        """Write versions in order."""
+        payload: Payload = {"versions": versions}
+        self._emit(payload, "\n".join(versions), render_sorted, _md_sorted(versions))
 
     def parsed(self, result: ValidationResult) -> None:
         """Write the parts of a valid version, or the findings for an invalid one."""
@@ -474,3 +486,8 @@ def _md_report(payload: Payload) -> str:
             *_md_table(header, rows),
         ]
     )
+
+
+def _md_sorted(versions: list[str]) -> str:
+    rows = [[position, v] for position, v in enumerate(versions, start=1)]
+    return "\n".join(["## calver-scm sort", "", *_md_table(["#", "Version"], rows)])

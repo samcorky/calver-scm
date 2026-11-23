@@ -207,7 +207,7 @@ def test_github_format_needs_github_output(
 
 
 @pytest.mark.e2e
-@pytest.mark.parametrize("command", ["explain", "doctor", "tags"])
+@pytest.mark.parametrize("command", ["explain", "doctor", "tags", "sort"])
 def test_github_format_refuses_commands_without_flat_results(
     repo: Path, github_output: Path, capsys: pytest.CaptureFixture[str], command: str
 ) -> None:
@@ -217,3 +217,30 @@ def test_github_format_refuses_commands_without_flat_results(
     assert captured.out == ""
     assert f"not supported by {command}" in captured.err
     assert not github_output.exists()
+
+
+@pytest.mark.e2e
+def test_compare_writes_both_inputs_and_the_order(
+    tmp_path: Path, github_output: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Let a later step branch on whether one version is older than another."""
+    assert (
+        main(
+            [
+                "--format",
+                "github",
+                "compare",
+                "2026.4.2",
+                "2026.4.3",
+                "-r",
+                str(tmp_path),
+            ]
+        )
+        == 0
+    )
+    assert capsys.readouterr().out == "less\n"
+    assert github_output.read_text(encoding="utf-8").splitlines() == [
+        "a=2026.4.2",
+        "b=2026.4.3",
+        "order=less",
+    ]

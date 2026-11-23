@@ -31,9 +31,11 @@ from calver_scm.release import (
 )
 from calver_scm.utils import _today_in_timezone
 from calver_scm.validation import (
+    ValidationResult,
     newest_in_scopes,
     validate_against_repo,
     validate_version,
+    version_order_key,
 )
 
 EXIT_OK = 0
@@ -71,6 +73,8 @@ calver-scm next-tag                   # the next release tag (read-only)
 calver-scm tags                       # how each local tag is read
 calver-scm validate v2026.4.2 --tag   # check a tag against your scheme
 calver-scm parse v2026.4.2 --tag      # split a tag into its parts
+calver-scm compare 2026.4.2 2026.4.3  # which is older: less, equal or greater
+calver-scm sort 2026.4.10 2026.4.2    # put versions in order
 calver-scm --json version             # machine-readable output
 ```
 
@@ -79,7 +83,7 @@ calver-scm --json version             # machine-readable output
 | Code | Meaning |
 |---|---|
 | `0` | Success. |
-| `1` | `validate` and `parse`: the input is invalid. `doctor`: errors were found. |
+| `1` | `validate`, `parse`, `compare`, `sort`: an input is invalid. `doctor`: errors. |
 | `2` | Bad usage, invalid configuration, or the version could not be resolved. |
 | `3` | `next-tag`: no safe tag can be proposed. |
 
@@ -145,7 +149,8 @@ def launcher(
             print(
                 f"error: --format github is not supported by "
                 f"{command.__name__.replace('_', '-')}; use it with version, "
-                "next-tag, validate or parse, or add --summary for a job summary",
+                "next-tag, validate, parse or compare, or add --summary for a "
+                "job summary",
                 file=sys.stderr,
             )
             return EXIT_RESOLUTION_ERROR
@@ -282,6 +287,143 @@ def validate(
         return EXIT_TAG_UNAVAILABLE
     output.validation(result)
     return EXIT_OK if result.valid else EXIT_INVALID
+
+
+def _validate_each(
+    values: list[str], root: Path, *, tag: bool
+) -> list[ValidationResult]:
+    """Validate every input against the project's scheme; no I/O beyond the settings."""
+    config = _load_calver_config(root.resolve())
+    return [validate_version(value, config, is_tag=tag) for value in values]
+
+
+_ORDER_EPILOGUE = """\
+Versions are ordered as PEP 440 orders them, so `2026.4.3.dev1` < `2026.4.3rc1` <
+`2026.4.3` < `2026.4.3.post1`, and `2026.4.9` < `2026.4.10`. Each input is checked
+against the project's scheme first, as `validate` does, and the first invalid one
+prints its findings and exits `1`."""
+
+
+@app.command(
+    help_epilogue=f"""\
+**Examples**
+
+```
+calver-scm compare 2026.4.2 2026.4.3        # less
+calver-scm compare v2026.4.10 v2026.4.9 -t  # greater, for tags
+calver-scm --json compare 2026.4.3rc1 2026.4.3
+```
+
+{_ORDER_EPILOGUE}
+
+**Exit codes:** `0` compared, `1` an input is invalid, `2` bad usage or the project
+configuration is unusable."""
+)
+def compare(
+    a: str,
+    b: str,
+    /,
+    *,
+    tag: Annotated[
+        bool, cyclopts.Parameter(name=("--tag", "-t"), negative="", show_default=False)
+    ] = False,
+    root: RootOption = Path(),
+    output: OutputParameter,
+) -> int:
+    """Say whether one version is older than, equal to or newer than another.
+
+    Prints `less` when A is older than B, `equal`, or `greater`.
+
+    Parameters
+    ----------
+    a
+        The first version, or Git tag when `--tag` is given.
+    b
+        The second version, or Git tag when `--tag` is given.
+    tag
+        Treat both inputs as Git tags that include the configured tag prefix.
+    root
+        Project directory whose `pyproject.toml` or `calver-scm.toml` holds the
+        settings.
+    """
+    try:
+        results = _validate_each([a, b], root, tag=tag)
+    except (RuntimeError, ResolutionError) as e:
+        print(f"error: {e}", file=sys.stderr)
+        return EXIT_RESOLUTION_ERROR
+    invalid = next((r for r in results if not r.valid), None)
+    if invalid is not None:
+        output.validation(invalid)
+        return EXIT_INVALID
+    first, second = (version_order_key(r) for r in results)
+    order = "less" if first < second else "greater" if first > second else "equal"
+    output.compared(a, b, order)
+    return EXIT_OK
+
+
+@app.command(
+    help_epilogue=f"""\
+**Examples**
+
+```
+calver-scm sort 2026.4.10 2026.4.2 2026.4.3rc1
+git tag | calver-scm sort --tag --reverse | head -1   # the newest tag
+calver-scm --json sort 2026.4.3 2026.4.2
+```
+
+With no versions on the command line they are read from standard input, one per
+line, and blank lines are skipped. Each is printed as it was written, so tags keep
+their prefix.
+
+{_ORDER_EPILOGUE}
+
+**Exit codes:** `0` sorted, `1` an input is invalid, `2` bad usage, no versions
+given or the project configuration is unusable."""
+)
+def sort(
+    *versions: str,
+    tag: Annotated[
+        bool, cyclopts.Parameter(name=("--tag", "-t"), negative="", show_default=False)
+    ] = False,
+    reverse: Annotated[
+        bool,
+        cyclopts.Parameter(name=("--reverse", "-R"), negative="", show_default=False),
+    ] = False,
+    root: RootOption = Path(),
+    output: OutputParameter,
+) -> int:
+    """Put versions or Git tags in order, oldest first.
+
+    Parameters
+    ----------
+    versions
+        The versions or tags to sort. Read from standard input when none are given.
+    tag
+        Treat the inputs as Git tags that include the configured tag prefix.
+    reverse
+        Newest first.
+    root
+        Project directory whose `pyproject.toml` or `calver-scm.toml` holds the
+        settings.
+    """
+    values = list(versions) or [
+        line.strip() for line in sys.stdin.read().splitlines() if line.strip()
+    ]
+    if not values:
+        print("error: no versions to sort", file=sys.stderr)
+        return EXIT_RESOLUTION_ERROR
+    try:
+        results = _validate_each(values, root, tag=tag)
+    except (RuntimeError, ResolutionError) as e:
+        print(f"error: {e}", file=sys.stderr)
+        return EXIT_RESOLUTION_ERROR
+    invalid = next((r for r in results if not r.valid), None)
+    if invalid is not None:
+        output.validation(invalid)
+        return EXIT_INVALID
+    ordered = sorted(results, key=version_order_key, reverse=reverse)
+    output.sorted_versions([r.input for r in ordered])
+    return EXIT_OK
 
 
 @app.command(
@@ -608,4 +750,4 @@ def tags(
 
 
 # Commands whose results are not flat enough to become step outputs.
-_NO_GITHUB_OUTPUT = (explain, doctor, tags)
+_NO_GITHUB_OUTPUT = (explain, doctor, tags, sort)

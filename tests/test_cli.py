@@ -508,7 +508,16 @@ def test_root_help_lists_every_command_with_examples_and_exit_codes(
     """Make the top-level help enough to get started without the README."""
     assert main(["--help"]) == 0
     out = flat(capsys.readouterr().out)
-    for command in ("version", "validate", "explain", "doctor", "next-tag", "tags"):
+    for command in (
+        "version",
+        "validate",
+        "explain",
+        "doctor",
+        "next-tag",
+        "tags",
+        "compare",
+        "sort",
+    ):
         assert f"calver-scm {command}" in out
     for fragment in ("Examples", "Exit codes", "--format", "--json", "Output"):
         assert fragment in out
@@ -516,7 +525,8 @@ def test_root_help_lists_every_command_with_examples_and_exit_codes(
 
 @pytest.mark.unit
 @pytest.mark.parametrize(
-    "command", ["version", "validate", "explain", "doctor", "next-tag", "tags"]
+    "command",
+    ["version", "validate", "explain", "doctor", "next-tag", "tags", "compare", "sort"],
 )
 def test_every_command_help_has_examples(
     command: str, capsys: pytest.CaptureFixture[str], flat: Callable[[str], str]
