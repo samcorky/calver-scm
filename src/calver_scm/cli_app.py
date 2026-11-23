@@ -386,16 +386,19 @@ def explain(
 ```
 calver-scm doctor
 calver-scm --json doctor
+calver-scm doctor --strict             # fail the build on warnings too
 ```
 
 **Severities:** `ok`; `info` (for your awareness); `warning` (may give a surprising
 version); `error` (resolution is broken).
 
-**Exit codes:** `0` no errors (warnings are allowed), `1` errors were found."""
+**Exit codes:** `0` no errors (warnings are allowed unless `--strict`), `1` errors
+were found, or warnings with `--strict`."""
 )
 def doctor(
     *,
     root: RootOption = Path(),
+    strict: Annotated[bool, cyclopts.Parameter(negative="")] = False,
     output: OutputParameter,
 ) -> int:
     """Diagnose problems that stop or distort version resolution.
@@ -409,10 +412,13 @@ def doctor(
     ----------
     root
         Project directory containing `pyproject.toml` or `calver-scm.toml`.
+    strict
+        Exit `1` on warnings as well as errors. The report is unchanged.
     """
     report = diagnose(root)
     output.report(report)
-    return EXIT_INVALID if report.status is Severity.ERROR else EXIT_OK
+    failing = (Severity.WARNING, Severity.ERROR) if strict else (Severity.ERROR,)
+    return EXIT_INVALID if report.status in failing else EXIT_OK
 
 
 @app.command(

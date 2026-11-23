@@ -80,6 +80,42 @@ def test_untagged_dirty_project_warns_without_failing(
 
 
 @pytest.mark.e2e
+def test_strict_fails_on_a_warning(
+    make_git_project: Callable[..., Path], capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Exit 1 under --strict when a finding is a warning, still printing the report."""
+    project = make_git_project(SETUPTOOLS.format(local_scheme="no-local-version"))
+    code = main(["--json", "doctor", "--strict", "--root", str(project)])
+    report = json.loads(capsys.readouterr().out)
+    assert report["status"] == "warning"
+    assert code == 1
+
+
+@pytest.mark.e2e
+def test_strict_passes_a_healthy_project(
+    healthy: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Exit 0 under --strict when every check is ok."""
+    code = main(["--json", "doctor", "--strict", "--root", str(healthy)])
+    assert json.loads(capsys.readouterr().out)["status"] == "ok"
+    assert code == 0
+
+
+@pytest.mark.e2e
+def test_strict_ignores_info_findings(
+    healthy: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Exit 0 under --strict when the worst finding is info (an env override)."""
+    monkeypatch.setenv("CALVER_SCM_STABLE", "true")
+    code = main(["--json", "doctor", "--strict", "--root", str(healthy)])
+    checks = by_code(json.loads(capsys.readouterr().out))
+    assert checks["env_overrides"]["severity"] == "info"
+    assert code == 0
+
+
+@pytest.mark.e2e
 @pytest.mark.filterwarnings("ignore:.*is shallow:UserWarning")
 def test_shallow_clone_is_flagged(
     make_git_project: Callable[..., Path],
