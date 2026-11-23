@@ -38,6 +38,7 @@ from calver_scm.validation import (
     validate_version,
     version_order_key,
 )
+from calver_scm.writer import WriteError, WriteStatus, write_version_file
 
 EXIT_OK = 0
 EXIT_INVALID = 1
@@ -189,11 +190,17 @@ calver-scm version
 calver-scm version --root ./backend
 VERSION=$(calver-scm version)   # plain output is just the version
 calver-scm --json version
+calver-scm version --write src/app/_version.py   # also write it to a file
+calver-scm version --write VERSION --dry-run     # show what would be written
 ```"""
 )
 def version(
     *,
     root: RootOption = Path(),
+    write: Annotated[Path | None, cyclopts.Parameter(name="--write")] = None,
+    dry_run: Annotated[
+        bool, cyclopts.Parameter(name="--dry-run", negative="", show_default=False)
+    ] = False,
     output: OutputParameter,
 ) -> int:
     """Print the full version the project's build would produce.
@@ -206,12 +213,32 @@ def version(
     ----------
     root
         Project directory containing `pyproject.toml` or `calver-scm.toml`.
+    write
+        Also write the version to this file, which must be inside the project.
+        A `.py` file gets a module with `__version__` and `version`; any other
+        file gets just the version and a newline. The file is replaced in one
+        step and left alone when it already holds the version.
+    dry_run
+        With `--write`, show what would be written without writing it.
     """
+    if dry_run and write is None:
+        print("error: --dry-run needs --write", file=sys.stderr)
+        return EXIT_RESOLUTION_ERROR
     try:
         resolved = resolve_build_version(root)
     except ResolutionError as e:
         print(f"error: {e}", file=sys.stderr)
         return EXIT_RESOLUTION_ERROR
+    if write is not None:
+        try:
+            written = write_version_file(root, write, resolved, dry_run=dry_run)
+        except WriteError as e:
+            print(f"error: {e}", file=sys.stderr)
+            return EXIT_RESOLUTION_ERROR
+        note = f"{written.status.value} {written.path}"
+        if written.status is WriteStatus.WOULD_WRITE:
+            note += f":\n{written.content.removesuffix(chr(10))}"
+        print(note, file=sys.stderr)
     output.version(resolved)
     return EXIT_OK
 
