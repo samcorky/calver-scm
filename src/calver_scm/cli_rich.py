@@ -15,20 +15,43 @@ from calver_scm.release import NextTagReason
 
 Payload = dict[str, Any]
 
-SEVERITY_STYLES = {
-    "ok": ("✓", "green"),
-    "info": ("i", "cyan"),
-    "warning": ("!", "yellow"),
-    "error": ("✗", "red"),
+# Each glyph with an ASCII stand-in for a console whose encoding cannot show it.
+GLYPHS = {
+    "ok": ("✓", "+"),
+    "error": ("✗", "x"),
+    "arrow": ("→", "->"),
+    "diamond": ("◆", "*"),
 }
 
-ARROW = ("  →  ", "dim")
+SEVERITY_STYLES = {
+    "ok": ("ok", "green"),
+    "info": ("i", "cyan"),
+    "warning": ("!", "yellow"),
+    "error": ("error", "red"),
+}
+
 MIN_WIDTH_FOR_COLUMNS = 78
 
 
 def console() -> Console:
     """Create a console on whatever stdout is now, honouring redirection."""
     return Console(highlight=False)
+
+
+def glyph(out: Console, name: str) -> str:
+    """The glyph called `name`, or its ASCII stand-in when the console needs it.
+
+    Rich swaps box borders for ASCII on such a console but leaves text alone, so
+    a literal glyph the encoding lacks would raise `UnicodeEncodeError`.
+    """
+    unicode, ascii_ = GLYPHS[name]
+    return ascii_ if out.options.ascii_only else unicode
+
+
+def severity_icon(out: Console, severity: str) -> tuple[str, str]:
+    """The icon and colour for a severity, as the console can show them."""
+    name, colour = SEVERITY_STYLES[severity]
+    return (glyph(out, name) if name in GLYPHS else name), colour
 
 
 def version_text(version: str) -> Text:
@@ -64,10 +87,13 @@ def render_version(payload: Payload) -> None:
 
 def render_validation(payload: Payload) -> None:
     """Show a validation verdict, with a table of issues when invalid."""
+    out = console()
     subject = Text(payload["input"], style="bold")
     body: RenderableType
     if payload["valid"]:
-        body = Text.assemble(("✓ ", "bold green"), subject, ("  is valid", "green"))
+        body = Text.assemble(
+            (f"{glyph(out, 'ok')} ", "bold green"), subject, ("  is valid", "green")
+        )
         colour = "green"
     else:
         issues = Table.grid(padding=(0, 2))
@@ -75,9 +101,13 @@ def render_validation(payload: Payload) -> None:
         issues.add_column()
         for error in payload["errors"]:
             issues.add_row(error["code"], error["message"])
-        body = Group(Text.assemble(("✗ ", "bold red"), subject), Text(), issues)
+        body = Group(
+            Text.assemble((f"{glyph(out, 'error')} ", "bold red"), subject),
+            Text(),
+            issues,
+        )
         colour = "red"
-    console().print(
+    out.print(
         Panel.fit(
             body,
             title="valid" if payload["valid"] else "invalid",
@@ -100,11 +130,12 @@ def render_explanation(payload: Payload) -> None:
         origin.append(f"  +{commits} commit{'s' if commits != 1 else ''}", "dim")
     if scm["dirty"]:
         origin.append("  dirty", "yellow")
+    arrow = (f"  {glyph(out, 'arrow')}  ", "dim")
     flow = Text.assemble(
         origin,
-        ARROW,
+        arrow,
         (reason.label.lower(), "yellow"),
-        ARROW,
+        arrow,
         version_text(payload["public_version"]),
     )
     if payload["local_segment"]:
@@ -113,7 +144,9 @@ def render_explanation(payload: Payload) -> None:
 
     header = Group(
         Text.assemble(("Version  ", "dim"), version_text(payload["version"])),
-        Text.assemble(("◆ ", "bold yellow"), (reason.label, "bold")),
+        Text.assemble(
+            (f"{glyph(out, 'diamond')} ", "bold yellow"), (reason.label, "bold")
+        ),
         Text(reason.description, style="italic"),
         Text(),
         flow,
@@ -194,10 +227,13 @@ def _facts(
 
 def render_next_tag(payload: Payload) -> None:
     """Show the proposed tag and why it has that number."""
+    out = console()
     reason = NextTagReason(payload["reason"])
     lines: list[Text] = [
         Text.assemble(("Next tag  ", "dim"), (payload["tag"], "bold green")),
-        Text.assemble(("◆ ", "bold yellow"), (reason.label, "bold")),
+        Text.assemble(
+            (f"{glyph(out, 'diamond')} ", "bold yellow"), (reason.label, "bold")
+        ),
         Text(reason.description, style="italic"),
     ]
     if payload["latest_tag"]:
@@ -209,7 +245,7 @@ def render_next_tag(payload: Payload) -> None:
             else "Latest release"
         )
         lines.append(Text.assemble((f"{label}  ", "dim"), payload["latest_tag"]))
-    console().print(
+    out.print(
         Panel.fit(
             Group(*lines),
             title="next-tag",
@@ -316,31 +352,37 @@ def render_tags(payload: Payload) -> None:
 
 def render_report(payload: Payload) -> None:
     """Show doctor results as a grouped table with a status summary."""
+    out = console()
     table = Table(box=box.ROUNDED, header_style="bold", expand=False)
-    table.add_column("", no_wrap=True, width=1)
+    table.add_column("", no_wrap=True)
     table.add_column("Check", style="bold", no_wrap=True)
     table.add_column("Result", overflow="fold")
     for check in payload["checks"]:
-        icon, colour = SEVERITY_STYLES[check["severity"]]
+        icon, colour = severity_icon(out, check["severity"])
         rows: list[tuple[Text, str, Text]] = [
             (Text(icon, style=f"bold {colour}"), check["code"], Text(check["summary"]))
         ]
         if check["detail"]:
             rows.append((Text(), "", Text(check["detail"], style="dim")))
         if check["remediation"]:
-            rows.append((Text(), "", Text(f"→ {check['remediation']}", style="cyan")))
+            rows.append(
+                (
+                    Text(),
+                    "",
+                    Text(f"{glyph(out, 'arrow')} {check['remediation']}", style="cyan"),
+                )
+            )
         for position, row in enumerate(rows):
             table.add_row(*row, end_section=position == len(rows) - 1)
 
     counts = Counter(check["severity"] for check in payload["checks"])
     summary = Text()
     for severity in ("ok", "info", "warning", "error"):
-        icon, colour = SEVERITY_STYLES[severity]
+        icon, colour = severity_icon(out, severity)
         if summary:
             summary.append("   ")
         summary.append(f"{icon} {counts[severity]} {severity}", style=colour)
     status_colour = SEVERITY_STYLES[payload["status"]][1]
-    out = console()
     out.print(table)
     out.print(
         Panel.fit(
