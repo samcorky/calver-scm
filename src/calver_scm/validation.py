@@ -169,6 +169,13 @@ def validate_version(
     )
 
 
+def version_order_key(result: ValidationResult) -> CalverVersion:
+    """The PEP 440 version a valid result is ordered by, without any tag prefix."""
+    if result.parts is None:  # pragma: no cover - callers pass valid results
+        raise ValueError("only a valid result can be ordered")
+    return CalverVersion(result.parts.version)
+
+
 def validate_against_repo(
     result: ValidationResult,
     config: CalverConfig,

@@ -229,6 +229,39 @@ TAG_KIND_STYLES = {
 }
 
 
+ORDER_SYMBOLS = {"less": "<", "equal": "=", "greater": ">"}
+
+
+def render_compared(payload: Payload) -> None:
+    """Show two versions either side of their ordering."""
+    console().print(
+        Panel.fit(
+            Text.assemble(
+                (payload["a"], "bold"),
+                (f"  {ORDER_SYMBOLS[payload['order']]}  ", "dim"),
+                (payload["b"], "bold"),
+            ),
+            title=payload["order"],
+            border_style="green",
+            box=box.ROUNDED,
+            padding=(0, 2),
+        )
+    )
+
+
+def render_sorted(payload: Payload) -> None:
+    """Show versions in order, one per line."""
+    console().print(
+        Panel.fit(
+            Group(*(Text(v, style="bold") for v in payload["versions"])),
+            title="sorted",
+            border_style="green",
+            box=box.ROUNDED,
+            padding=(0, 2),
+        )
+    )
+
+
 def render_parsed(payload: Payload) -> None:
     """Show the parts of a valid version as a table."""
     rows = [

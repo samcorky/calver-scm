@@ -623,12 +623,26 @@ Plain output is one tab-separated line per tag: tag, kind, period, patch (`-` wh
 
 A tag without the configured prefix is still read if it is a valid version, exactly as `next-tag` reads it.
 
+### Comparing and sorting versions
+
+```bash
+calver-scm compare 2026.4.2 2026.4.3          # less
+calver-scm compare v2026.4.10 v2026.4.9 --tag # greater
+git tag | calver-scm sort --tag --reverse | head -1   # the newest tag
+calver-scm sort 2026.4.10 2026.4.2 2026.4.3rc1
+```
+
+`compare A B` prints `less` when A is older than B, `equal`, or `greater`. `sort` prints versions oldest first (`--reverse` for newest first), taking them from the command line or, with none given, from standard input one per line with blank lines skipped. Each version is printed as written, so tags keep their prefix. Both order as PEP 440 does, which `sort -V` does not: `2026.4.3.dev1` < `2026.4.3rc1` < `2026.4.3` < `2026.4.3.post1`, and `2026.4.9` < `2026.4.10`.
+
+Every input is checked against the project's scheme first, exactly as `validate` checks it (pass `--tag` for Git tags, which must carry the configured prefix). The first invalid input prints its findings and exits `1`, so a script stops on a bad tag instead of quietly dropping it. That also means a stable and an unstable (`0.`) version can never be mixed: under `stable = false` a version without the `0.` is invalid. `--json` gives `{"a": ..., "b": ..., "order": ...}` for `compare` and `{"versions": [...]}` for `sort`. `sort` with nothing to sort exits `2`.
+
 ### Short flags
 
 | Flag | Short | Applies to |
 | --- | --- | --- |
 | `--root` | `-r` | every command |
-| `--tag` | `-t` | `validate`, `parse` |
+| `--reverse` | `-R` | `sort` |
+| `--tag` | `-t` | `validate`, `parse`, `compare`, `sort` |
 | `--against-repo` | none | `validate`, `parse` |
 | `--date` | `-d` | `next-tag` |
 | `--pre` | none | `next-tag` |
@@ -659,7 +673,7 @@ Piping or redirecting therefore always gives plain text without needing a flag. 
 
 #### GitHub Actions
 
-`--format github` appends each top-level scalar value of the result to the file named by `$GITHUB_OUTPUT`, so later steps can read it as `steps.<id>.outputs.<name>`, with no parsing or hand-written `echo >> "$GITHUB_OUTPUT"`. It works with `version`, `next-tag`, `validate` and `parse`; `explain`, `doctor` and `tags` have nested results and exit `2`. Booleans are `true` or `false`, a missing value is empty, and a value spanning lines is written between a random delimiter so it cannot inject another output. The plain form is still printed so the step log shows the result. Outside Actions, with `GITHUB_OUTPUT` unset or empty, it exits `2` before doing any work. For `validate` the outputs are `valid` and `input`, plus `kind`, `is_prerelease`, `period`, `patch`, `pre`, `post`, `dev`, `version`, `stable` and `tag_prefix` when the input is valid (`date` is nested, so it is JSON only), and an invalid input still writes `valid` and `input` before exiting `1`.
+`--format github` appends each top-level scalar value of the result to the file named by `$GITHUB_OUTPUT`, so later steps can read it as `steps.<id>.outputs.<name>`, with no parsing or hand-written `echo >> "$GITHUB_OUTPUT"`. It works with `version`, `next-tag`, `validate`, `parse` and `compare`; `explain`, `doctor`, `tags` and `sort` have nested results and exit `2`. Booleans are `true` or `false`, a missing value is empty, and a value spanning lines is written between a random delimiter so it cannot inject another output. The plain form is still printed so the step log shows the result. Outside Actions, with `GITHUB_OUTPUT` unset or empty, it exits `2` before doing any work. For `validate` the outputs are `valid` and `input`, plus `kind`, `is_prerelease`, `period`, `patch`, `pre`, `post`, `dev`, `version`, `stable` and `tag_prefix` when the input is valid (`date` is nested, so it is JSON only), and an invalid input still writes `valid` and `input` before exiting `1`.
 
 `next-tag` writes `tag`, `version`, `patch`, `reason`, `latest_tag`, `is_prerelease` and `channel`. An example release workflow that plans the tag, then tags and publishes it, marking pre-releases:
 
@@ -706,21 +720,21 @@ To gate a tag-push workflow instead, check the tag against the repository first;
 
 ##### Job summary
 
-`--summary` also appends a Markdown report of the result to the file named by `$GITHUB_STEP_SUMMARY`, which GitHub shows on the run page. Unlike `--format github` it works with every command, including `explain`, `doctor` and `tags`, and with every format, so a step can export outputs and write its summary at once. Stdout and the exit code are unchanged, so the summary is written even when `doctor` or `validate` fails, which is when it is most useful. Each step's report is appended to the file, never overwriting what earlier steps wrote.
+`--summary` also appends a Markdown report of the result to the file named by `$GITHUB_STEP_SUMMARY`, which GitHub shows on the run page. Unlike `--format github` it works with every command, including `explain`, `doctor`, `tags` and `sort`, and with every format, so a step can export outputs and write its summary at once. Stdout and the exit code are unchanged, so the summary is written even when `doctor` or `validate` fails, which is when it is most useful. Each step's report is appended to the file, never overwriting what earlier steps wrote.
 
 ```yaml
       - run: uvx calver-scm --summary doctor
       - run: uvx calver-scm --summary --format github next-tag
 ```
 
-`doctor` gives a table of checks with their severity, detail and fix; `explain` the derivation and a table of each setting with where it came from; `tags` a table of tags; `version`, `next-tag`, `validate` and `parse` a table of their fields, with the findings listed for an invalid input. Anything that comes from the repository, such as a tag name or an error message, is escaped, so a crafted tag cannot add markup to the page. `doctor` error details can include file paths, as they do in the log. Outside Actions, with `GITHUB_STEP_SUMMARY` unset or empty, `--summary` exits `2` before doing any work.
+`doctor` gives a table of checks with their severity, detail and fix; `explain` the derivation and a table of each setting with where it came from; `tags` a table of tags; `version`, `next-tag`, `validate`, `parse` and `compare` a table of their fields, `sort` a numbered list of versions, with the findings listed for an invalid input. Anything that comes from the repository, such as a tag name or an error message, is escaped, so a crafted tag cannot add markup to the page. `doctor` error details can include file paths, as they do in the log. Outside Actions, with `GITHUB_STEP_SUMMARY` unset or empty, `--summary` exits `2` before doing any work.
 
 ### Exit codes
 
 | Code | Meaning |
 | --- | --- |
-| `0` | Success. For `validate`, the input is valid. For `doctor`, no errors (warnings are allowed unless `--strict`). |
-| `1` | `validate`: the input is invalid. `doctor`: errors were found, or warnings with `--strict`. |
+| `0` | Success. For `validate`, the input is valid; for `compare`, whichever way they order. For `doctor`, no errors (warnings are allowed unless `--strict`). |
+| `1` | `validate`, `parse`, `compare` and `sort`: an input is invalid. `doctor`: errors were found, or warnings with `--strict`. |
 | `2` | Invalid usage, invalid configuration, or the version could not be resolved. `--format github` without `GITHUB_OUTPUT`, or on a command that does not support it, is invalid usage. |
 | `3` | `validate --against-repo` and `parse --against-repo`: a shallow clone. `next-tag`: no safe tag can be proposed (a shallow clone, `patch = false` with the period already released, `--promote` with nothing to promote, or `--post` with no release in the period). |
 
