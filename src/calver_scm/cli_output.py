@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import html
 import json
 import uuid
 from dataclasses import dataclass
@@ -57,19 +58,33 @@ class Output:
     The GitHub format appends the payload's top-level scalar values to the
     `github_output` file, which is `$GITHUB_OUTPUT` in Actions, and still prints
     the plain form so the step log shows the result.
+
+    Independently of the format, `step_summary` (`$GITHUB_STEP_SUMMARY` in
+    Actions) makes every result also append a Markdown report to that file.
     """
 
     format: OutputFormat
     github_output: Path | None = None
+    step_summary: Path | None = None
 
     def version(self, value: str) -> None:
         """Write a resolved version."""
-        self._emit({"version": value}, value, render_version)
+        self._emit(
+            {"version": value},
+            value,
+            render_version,
+            _md_fields("version", {"version": value}),
+        )
 
     def explanation(self, explanation: BuildExplanation) -> None:
         """Write how the build version was derived."""
         payload = _explanation_payload(explanation)
-        self._emit(payload, "\n".join(_flatten(payload)), render_explanation)
+        self._emit(
+            payload,
+            "\n".join(_flatten(payload)),
+            render_explanation,
+            _md_explanation(payload),
+        )
 
     def next_tag(self, plan: NextTag) -> None:
         """Write the proposed release tag."""
@@ -82,7 +97,7 @@ class Output:
             "is_prerelease": plan.is_prerelease,
             "channel": plan.channel.value if plan.channel else None,
         }
-        self._emit(payload, plan.tag, render_next_tag)
+        self._emit(payload, plan.tag, render_next_tag, _md_fields("next-tag", payload))
 
     def tags(self, infos: list[TagInfo]) -> None:
         """Write how each local tag reads under the scheme."""
@@ -99,28 +114,49 @@ class Output:
                 for info in infos
             ]
         }
-        self._emit(payload, "\n".join(_tags_plain(payload)), render_tags)
+        self._emit(
+            payload, "\n".join(_tags_plain(payload)), render_tags, _md_tags(payload)
+        )
 
     def report(self, report: DoctorReport) -> None:
         """Write the doctor diagnostics."""
         payload = _report_payload(report)
-        self._emit(payload, "\n".join(_report_plain(payload)), render_report)
+        self._emit(
+            payload,
+            "\n".join(_report_plain(payload)),
+            render_report,
+            _md_report(payload),
+        )
 
-    def validation(self, result: ValidationResult) -> None:
+    def validation(self, result: ValidationResult, *, title: str = "validate") -> None:
         """Write a validation verdict."""
         payload = _validation_payload(result)
-        self._emit(payload, "\n".join(_validation_plain(payload)), render_validation)
+        self._emit(
+            payload,
+            "\n".join(_validation_plain(payload)),
+            render_validation,
+            _md_validation(title, payload),
+        )
 
     def parsed(self, result: ValidationResult) -> None:
         """Write the parts of a valid version, or the findings for an invalid one."""
         if not result.valid:
-            self.validation(result)
+            self.validation(result, title="parse")
             return
         payload = _validation_payload(result)
-        self._emit(payload, "\n".join(_parsed_plain(payload)), render_parsed)
+        self._emit(
+            payload,
+            "\n".join(_parsed_plain(payload)),
+            render_parsed,
+            _md_validation("parse", payload),
+        )
 
     def _emit(
-        self, payload: Payload, plain: str, rich: Callable[[Payload], None]
+        self,
+        payload: Payload,
+        plain: str,
+        rich: Callable[[Payload], None],
+        markdown: str,
     ) -> None:
         match self.format:
             case OutputFormat.JSON:
@@ -132,6 +168,9 @@ class Output:
                 print(plain)
             case _:
                 print(plain)
+        if self.step_summary is not None:
+            with self.step_summary.open("a", encoding="utf-8") as handle:
+                handle.write(markdown + "\n")
 
     def _write_github_output(self, payload: Payload) -> None:
         if self.github_output is None:  # pragma: no cover - checked by the launcher
@@ -317,3 +356,121 @@ def _report_plain(payload: Payload) -> list[str]:
             lines.append(f"  fix: {check['remediation']}")
     lines.append(f"status: {payload['status']}")
     return lines
+
+
+_MD_SPECIAL = str.maketrans({c: f"\\{c}" for c in "\\`*_[]|"})
+
+
+class _Code(str):
+    """An identifier calver-scm defines itself, shown as a code span, unescaped."""
+
+    __slots__ = ()
+
+
+def _md_cell(value: object) -> str:
+    """Make a value safe inside a Markdown table cell.
+
+    Tag names, settings and error text can come from a repository, so HTML is
+    escaped, Markdown punctuation is backslash-escaped and newlines become
+    spaces: a crafted value then cannot end its row or inject markup.
+    """
+    if isinstance(value, _Code):
+        return f"`{value}`"
+    text = html.escape(_github_value(value), quote=False)
+    text = " ".join(text.splitlines())
+    return text.translate(_MD_SPECIAL)
+
+
+def _md_table(header: list[str], rows: list[list[object]]) -> list[str]:
+    lines = [f"| {' | '.join(header)} |", f"|{' --- |' * len(header)}"]
+    lines.extend(f"| {' | '.join(_md_cell(c) for c in row)} |" for row in rows)
+    return lines
+
+
+def _md_scalars(payload: Payload) -> list[list[object]]:
+    """Rows of field and value; nested mappings are flattened with dotted keys."""
+    rows: list[list[object]] = []
+    for key, value in payload.items():
+        if isinstance(value, dict):
+            rows.extend([_Code(f"{key}.{inner}"), v] for inner, v in value.items())
+        elif not isinstance(value, list):
+            rows.append([_Code(key), value])
+    return rows
+
+
+def _md_fields(title: str, payload: Payload) -> str:
+    rows = _md_scalars(payload)
+    return "\n".join(
+        [f"## calver-scm {title}", "", *_md_table(["Field", "Value"], rows)]
+    )
+
+
+def _md_validation(title: str, payload: Payload) -> str:
+    verdict = "valid" if payload["valid"] else "invalid"
+    rows = [row for row in _md_scalars(payload) if row[0] != "valid"]
+    lines = [
+        f"## calver-scm {title}",
+        "",
+        f"**Result:** {verdict}",
+        "",
+        *_md_table(["Field", "Value"], rows),
+    ]
+    if payload["errors"]:
+        lines.append("")
+        lines.extend(
+            f"- `{e['code']}`: {_md_cell(e['message'])}" for e in payload["errors"]
+        )
+    return "\n".join(lines)
+
+
+def _md_explanation(payload: Payload) -> str:
+    top = {k: v for k, v in payload.items() if k not in ("config", "config_sources")}
+    top.pop("env_overrides")
+    settings = [
+        [_Code(name), value, _Code(payload["config_sources"][name])]
+        for name, value in payload["config"].items()
+    ]
+    lines = [
+        "## calver-scm explain",
+        "",
+        *_md_table(["Field", "Value"], _md_scalars(top)),
+        "",
+        "### Settings",
+        "",
+        *_md_table(["Setting", "Value", "Source"], settings),
+    ]
+    if payload["env_overrides"]:
+        lines.extend(["", "### Environment overrides", ""])
+        lines.extend(
+            _md_table(
+                ["Variable", "Value"],
+                [[k, v] for k, v in payload["env_overrides"].items()],
+            )
+        )
+    return "\n".join(lines)
+
+
+def _md_tags(payload: Payload) -> str:
+    rows = [
+        [e["tag"], _Code(e["kind"]), e["period"], e["patch"], e["counted"], e["reason"]]
+        for e in payload["tags"]
+    ]
+    header = ["Tag", "Kind", "Period", "Patch", "Counted", "Reason"]
+    return "\n".join(["## calver-scm tags", "", *_md_table(header, rows)])
+
+
+def _md_report(payload: Payload) -> str:
+    rows = [
+        [c["severity"], _Code(c["code"]), c["summary"], c["detail"], c["remediation"]]
+        for c in payload["checks"]
+    ]
+    header = ["Severity", "Check", "Summary", "Detail", "Fix"]
+    return "\n".join(
+        [
+            "## calver-scm doctor",
+            "",
+            f"**Status:** {payload['status']}",
+            "",
+            *_md_table(header, rows),
+        ]
+    )

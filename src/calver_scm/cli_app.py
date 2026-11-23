@@ -116,6 +116,10 @@ def launcher(
             show_default=False,
         ),
     ] = False,
+    summary: Annotated[
+        bool,
+        cyclopts.Parameter(negative="", group="Output", show_default=False),
+    ] = False,
 ) -> int:
     """Resolve the output format, then run the requested command.
 
@@ -127,6 +131,10 @@ def launcher(
         to `$GITHUB_OUTPUT` for `version`, `next-tag`, `validate` and `parse`).
     as_json
         Same as `--format json`.
+    summary
+        Also append a Markdown report of the result to `$GITHUB_STEP_SUMMARY`,
+        which GitHub Actions shows on the run page. Works with every command and
+        every format.
     """
     requested = OutputFormat.JSON if as_json else output_format
     resolved = resolve_format(requested, is_tty=sys.stdout.isatty())
@@ -137,7 +145,7 @@ def launcher(
             print(
                 f"error: --format github is not supported by "
                 f"{command.__name__.replace('_', '-')}; use it with version, "
-                "next-tag, validate or parse",
+                "next-tag, validate or parse, or add --summary for a job summary",
                 file=sys.stderr,
             )
             return EXIT_RESOLUTION_ERROR
@@ -149,7 +157,17 @@ def launcher(
             )
             return EXIT_RESOLUTION_ERROR
         github_output = Path(os.environ["GITHUB_OUTPUT"])
-    output = Output(resolved, github_output)
+    step_summary = None
+    if summary:
+        if not os.environ.get("GITHUB_STEP_SUMMARY"):
+            print(
+                "error: --summary needs the GITHUB_STEP_SUMMARY environment "
+                "variable, which GitHub Actions sets for each step",
+                file=sys.stderr,
+            )
+            return EXIT_RESOLUTION_ERROR
+        step_summary = Path(os.environ["GITHUB_STEP_SUMMARY"])
+    output = Output(resolved, github_output, step_summary)
     extra = dict.fromkeys(ignored, output)
     result = command(*bound.args, **bound.kwargs, **extra)
     # The built-in help page, shown when no command is given, returns None.

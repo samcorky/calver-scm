@@ -704,6 +704,17 @@ To gate a tag-push workflow instead, check the tag against the repository first;
       - run: uvx calver-scm validate "$GITHUB_REF_NAME" --tag --against-repo
 ```
 
+##### Job summary
+
+`--summary` also appends a Markdown report of the result to the file named by `$GITHUB_STEP_SUMMARY`, which GitHub shows on the run page. Unlike `--format github` it works with every command, including `explain`, `doctor` and `tags`, and with every format, so a step can export outputs and write its summary at once. Stdout and the exit code are unchanged, so the summary is written even when `doctor` or `validate` fails, which is when it is most useful. Each step's report is appended to the file, never overwriting what earlier steps wrote.
+
+```yaml
+      - run: uvx calver-scm --summary doctor
+      - run: uvx calver-scm --summary --format github next-tag
+```
+
+`doctor` gives a table of checks with their severity, detail and fix; `explain` the derivation and a table of each setting with where it came from; `tags` a table of tags; `version`, `next-tag`, `validate` and `parse` a table of their fields, with the findings listed for an invalid input. Anything that comes from the repository, such as a tag name or an error message, is escaped, so a crafted tag cannot add markup to the page. `doctor` error details can include file paths, as they do in the log. Outside Actions, with `GITHUB_STEP_SUMMARY` unset or empty, `--summary` exits `2` before doing any work.
+
 ### Exit codes
 
 | Code | Meaning |
