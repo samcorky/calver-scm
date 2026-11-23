@@ -636,12 +636,23 @@ calver-scm sort 2026.4.10 2026.4.2 2026.4.3rc1
 
 Every input is checked against the project's scheme first, exactly as `validate` checks it (pass `--tag` for Git tags, which must carry the configured prefix). The first invalid input prints its findings and exits `1`, so a script stops on a bad tag instead of quietly dropping it. That also means a stable and an unstable (`0.`) version can never be mixed: under `stable = false` a version without the `0.` is invalid. `--json` gives `{"a": ..., "b": ..., "order": ...}` for `compare` and `{"versions": [...]}` for `sort`. `sort` with nothing to sort exits `2`.
 
+#### Crossing from unstable to stable
+
+When a project drops `stable = false` (or adds it), its older tags keep, or lack, the `0.` prefix that the new setting rejects: `v0.2026.11.1` is not valid under `stable = true`. `calver-scm tags` lists them as `ignored` and `next-tag` plans without them, so they never affect what the next release is. `compare` and `sort` check each input strictly, so one legacy tag in `git tag` output would stop `sort` with exit `1`. Pass `--skip-other-stability` to leave those out:
+
+```bash
+git tag | calver-scm sort --tag --reverse --skip-other-stability | head -1   # the newest stable tag
+```
+
+It skips only an input whose sole problem is the `0.` prefix disagreeing with `stable`, in either direction, and prints `note: skipped N versions …` on stderr so stdout stays the result. A malformed tag (a bad month, a missing `v`) still fails, so the flag cannot hide a typo. Skipping never changes which tag is newest, because PEP 440 puts `0.2026.11.1` below `2026.12.0`. If every input is skipped, `sort` exits `2`.
+
 ### Short flags
 
 | Flag | Short | Applies to |
 | --- | --- | --- |
 | `--root` | `-r` | every command |
 | `--reverse` | `-R` | `sort` |
+| `--skip-other-stability` | none | `sort` |
 | `--tag` | `-t` | `validate`, `parse`, `compare`, `sort` |
 | `--against-repo` | none | `validate`, `parse` |
 | `--date` | `-d` | `next-tag` |

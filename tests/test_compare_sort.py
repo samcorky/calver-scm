@@ -243,3 +243,142 @@ def test_rich_output_shows_the_ordering(
     )
     assert code == 0
     assert out.index("2026.4.2") < out.index("2026.4.3")
+
+
+@pytest.fixture
+def stable_project(tmp_path: Path) -> Path:
+    """A project that has crossed from `stable = false` to `stable = true`."""
+    (tmp_path / "calver-scm.toml").write_text("stable = true\n", encoding="utf-8")
+    return tmp_path
+
+
+def test_skip_other_stability_drops_legacy_tags_after_going_stable(
+    stable_project: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Order the stable tags and leave the `0.` ones behind, as `tags` does."""
+    code, out, err = run(
+        capsys,
+        stable_project,
+        "--format",
+        "plain",
+        "sort",
+        "--tag",
+        "--skip-other-stability",
+        "v0.2026.11.1",
+        "v2026.12.1",
+        "v0.2026.10.0",
+        "v2026.12.0",
+    )
+    assert code == 0
+    assert out.splitlines() == ["v2026.12.0", "v2026.12.1"]
+    assert err == (
+        "note: skipped 2 versions with a leading '0.' prefix, "
+        "which does not fit stable = true\n"
+    )
+
+
+def test_without_the_flag_a_legacy_tag_still_fails(
+    stable_project: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Keep the default strict, so the first run shows the problem."""
+    code, out, err = run(
+        capsys, stable_project, "--format", "plain", "sort", "--tag", "v0.2026.11.1"
+    )
+    assert code == 1
+    assert "unexpected_stability_prefix" in out
+    assert err == ""
+
+
+def test_skip_other_stability_works_in_the_other_direction(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Skip versions without the `0.` prefix when the project is unstable."""
+    (tmp_path / "calver-scm.toml").write_text("stable = false\n", encoding="utf-8")
+    code, out, err = run(
+        capsys,
+        tmp_path,
+        "--format",
+        "plain",
+        "sort",
+        "--skip-other-stability",
+        "2026.4.2",
+        "0.2026.4.10",
+        "0.2026.4.3",
+    )
+    assert (code, out.splitlines()) == (0, ["0.2026.4.3", "0.2026.4.10"])
+    assert err == (
+        "note: skipped 1 version with no '0.' prefix, "
+        "which does not fit stable = false\n"
+    )
+
+
+def test_skip_other_stability_does_not_hide_real_mistakes(
+    stable_project: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Still fail on a malformed version, which is not a stability mismatch."""
+    code, out, _ = run(
+        capsys,
+        stable_project,
+        "--format",
+        "plain",
+        "sort",
+        "--skip-other-stability",
+        "0.2026.4.1",
+        "2026.13.1",
+        "2026.4.2",
+    )
+    assert code == 1
+    assert out.startswith("invalid: 2026.13.1\n")
+
+
+def test_skip_other_stability_is_quiet_when_nothing_is_skipped(
+    stable_project: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Say nothing on stderr when every input was usable."""
+    code, out, err = run(
+        capsys,
+        stable_project,
+        "--format",
+        "plain",
+        "sort",
+        "--skip-other-stability",
+        "2026.4.3",
+        "2026.4.2",
+    )
+    assert (code, out.splitlines(), err) == (0, ["2026.4.2", "2026.4.3"], "")
+
+
+def test_skipping_everything_is_a_usage_error(
+    stable_project: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Refuse an empty result a script would take as success."""
+    code, out, err = run(
+        capsys,
+        stable_project,
+        "--format",
+        "plain",
+        "sort",
+        "--skip-other-stability",
+        "0.2026.4.1",
+        "0.2026.4.2",
+    )
+    assert (code, out) == (2, "")
+    assert "no versions left to sort" in err
+
+
+def test_skip_note_goes_to_stderr_so_json_stays_parseable(
+    stable_project: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Keep stdout to the result, whatever the format."""
+    code, out, err = run(
+        capsys,
+        stable_project,
+        "--json",
+        "sort",
+        "--skip-other-stability",
+        "0.2026.4.1",
+        "2026.4.2",
+    )
+    assert code == 0
+    assert json.loads(out) == {"versions": ["2026.4.2"]}
+    assert "skipped 1 version" in err
