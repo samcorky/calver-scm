@@ -491,3 +491,36 @@ def test_no_foreign_build_tag_finding_without_tags(
     project = make_git_project(MONOREPO.format(prefix="api-v", extra=""))
     _, report = run_doctor(capsys, project)
     assert "foreign_build_tag" not in by_code(report)
+
+
+@pytest.mark.e2e
+def test_only_real_settings_count_as_overrides(
+    healthy: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Do not call a variable that is not a setting an override; report it apart."""
+    monkeypatch.setenv("CALVER_SCM_NO_DEV", "true")
+    monkeypatch.setenv("CALVER_SCM_VERSION", "installed")
+    monkeypatch.setenv("CALVER_SCM_PREFIX", "false")
+    code, report = run_doctor(capsys, healthy)
+    checks = by_code(report)
+    assert code == 0
+    assert checks["env_overrides"]["detail"] == "CALVER_SCM_NO_DEV=true"
+    unknown = checks["unknown_env_overrides"]
+    assert unknown["severity"] == "warning"
+    assert unknown["detail"] == "CALVER_SCM_PREFIX, CALVER_SCM_VERSION"
+    assert "CALVER_SCM_STABLE" in unknown["remediation"]
+
+
+@pytest.mark.e2e
+def test_unknown_variables_alone_do_not_claim_an_override(
+    healthy: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setenv("CALVER_SCM_VERSION", "installed")
+    _, report = run_doctor(capsys, healthy)
+    checks = by_code(report)
+    assert "env_overrides" not in checks
+    assert "unknown_env_overrides" in checks

@@ -19,6 +19,7 @@ from calver_scm.cli_support import (
 from calver_scm.config import (
     CONFIG_FILE_NAME,
     PYPROJECT_FILE_NAME,
+    SETTING_ENV_VARS,
     _load_calver_config,
     describe_settings_files,
 )
@@ -41,6 +42,7 @@ class CheckCode(StrEnum):
     SETTINGS_SOURCE = "settings_source"
     SETTINGS_CONFLICT = "settings_conflict"
     ENV_OVERRIDES = "env_overrides"
+    UNKNOWN_ENV_OVERRIDES = "unknown_env_overrides"
     GIT_AVAILABLE = "git_available"
     RESOLUTION = "resolution"
     SHALLOW_CHECKOUT = "shallow_checkout"
@@ -187,17 +189,32 @@ def _check_settings_files(project: Path) -> list[Diagnostic]:
 
 
 def _check_env_overrides() -> list[Diagnostic]:
-    active = sorted(name for name in os.environ if name.startswith("CALVER_SCM_"))
-    if not active:
-        return []
-    return [
-        Diagnostic(
-            CheckCode.ENV_OVERRIDES,
-            Severity.INFO,
-            "CALVER_SCM_* variables override the settings files",
-            ", ".join(f"{name}={os.environ[name]}" for name in active),
+    named = sorted(name for name in os.environ if name.startswith("CALVER_SCM_"))
+    active = [name for name in named if name in SETTING_ENV_VARS]
+    unknown = [name for name in named if name not in SETTING_ENV_VARS]
+    results: list[Diagnostic] = []
+    if active:
+        results.append(
+            Diagnostic(
+                CheckCode.ENV_OVERRIDES,
+                Severity.INFO,
+                "CALVER_SCM_* variables override the settings files",
+                ", ".join(f"{name}={os.environ[name]}" for name in active),
+            )
         )
-    ]
+    if unknown:
+        results.append(
+            Diagnostic(
+                CheckCode.UNKNOWN_ENV_OVERRIDES,
+                Severity.WARNING,
+                "CALVER_SCM_* variables that are not settings are ignored",
+                ", ".join(unknown),
+                "Check the spelling. The settings are "
+                + ", ".join(sorted(SETTING_ENV_VARS))
+                + ".",
+            )
+        )
+    return results
 
 
 def _check_resolution(project: Path, *, git_available: bool) -> list[Diagnostic]:
