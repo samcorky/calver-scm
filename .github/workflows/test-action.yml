@@ -110,6 +110,22 @@ jobs:
           root: ${{ env.DEMO }}
           calver-scm-version: installed
 
+      # The released package from PyPI, which is how most users run the action. The other
+      # steps use the checkout, so only this one proves a pinned install works.
+      - name: Pinned release from PyPI
+        id: pinned
+        uses: ./
+        with:
+          command: validate
+          tag: v2026.4.2
+          root: ${{ env.DEMO }}
+          calver-scm-version: "1.12.0"
+
+      - name: Check the pinned run
+        env:
+          VALID: ${{ steps.pinned.outputs.valid }}
+        run: '[[ "$VALID" == "true" ]]'
+
       - name: A bad version pin fails before installing anything
         id: bad
         continue-on-error: true
