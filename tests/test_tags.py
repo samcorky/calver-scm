@@ -205,3 +205,24 @@ def test_tags_warns_on_a_shallow_clone(
     )
     assert main(["tags", "-r", str(shallow)]) == 0
     assert "warning: this is a shallow clone" in capsys.readouterr().err
+
+
+@pytest.mark.unit
+def test_foreign_prefix_tag_says_whose_it_is() -> None:
+    """Name the other prefix so a monorepo user sees why the tag is skipped."""
+    config = CalverConfig(tag_prefix="api-v")
+    infos = {
+        i.tag: i
+        for i in classify_tags(["web-v2026.11.3", "api-vbanana", "latest"], config)
+    }
+    assert infos["web-v2026.11.3"].kind is TagKind.IGNORED
+    assert infos["web-v2026.11.3"].reason == "has the prefix 'web-v', not 'api-v'"
+    assert infos["api-vbanana"].reason == "not a valid PEP 440 version"
+    assert infos["latest"].reason == "not a valid PEP 440 version"
+
+
+@pytest.mark.unit
+def test_empty_prefix_never_reports_a_foreign_prefix() -> None:
+    """With no prefix every valid version parses, and junk stays junk."""
+    infos = classify_tags(["web-v2026.11.3"], CalverConfig(tag_prefix=""))
+    assert infos[0].reason == "not a valid PEP 440 version"

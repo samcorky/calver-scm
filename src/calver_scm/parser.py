@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING
 
 from packaging.version import InvalidVersion
@@ -24,7 +25,7 @@ def _parse_tag_or_reason(
     try:
         parsed = CalverVersion(stripped)
     except InvalidVersion:
-        return None, "not a valid PEP 440 version"
+        return None, _invalid_reason(tag, cfg)
 
     if _has_misplaced_stability_prefix(stripped, parsed, cfg):
         return (
@@ -33,6 +34,19 @@ def _parse_tag_or_reason(
         )
 
     return parsed, None
+
+
+def _invalid_reason(tag: str, cfg: CalverConfig) -> str:
+    """Say why a tag is not a version, naming another prefix when that is why."""
+    lead = re.match(r"\D+", tag)
+    if lead is not None and not tag.startswith(cfg.tag_prefix):
+        try:
+            CalverVersion(tag[lead.end() :])
+        except InvalidVersion:
+            pass
+        else:
+            return f"has the prefix {lead.group()!r}, not {cfg.tag_prefix!r}"
+    return "not a valid PEP 440 version"
 
 
 def _has_misplaced_stability_prefix(

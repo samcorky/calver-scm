@@ -221,6 +221,33 @@ def is_shallow_repository(project: Path) -> bool:
     return result.returncode == 0 and result.stdout.strip() == "true"
 
 
+def nearest_build_tag(project: Path) -> str | None:
+    """The tag setuptools-scm reads by default: the nearest one containing a digit."""
+    result = subprocess.run(
+        ["git", "describe", "--tags", "--abbrev=0", "--match", "*[0-9]*"],
+        cwd=project,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return result.stdout.strip() or None if result.returncode == 0 else None
+
+
+def scopes_build_tags(options: dict[str, Any]) -> bool:
+    """Whether the project narrows which tags the build reads.
+
+    True for `tag.prefix` or a describe command, in either its current or its
+    deprecated spelling: the project has then taken responsibility for it.
+    """
+    tag = options.get("tag") or {}
+    git = (options.get("scm") or {}).get("git") or {}
+    return bool(
+        tag.get("prefix")
+        or git.get("describe_command")
+        or options.get("git_describe_command")
+    )
+
+
 def list_local_tags(project: Path) -> list[str]:
     """Return every tag known to the local repository containing `project`."""
     result = subprocess.run(
