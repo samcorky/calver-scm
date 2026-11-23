@@ -118,6 +118,7 @@ dev = [
     "prek>=0.5.9",
     "pytest>=9.0.2",
     "pytest-cov>=7.0.0",
+    "pyyaml>=6.0.2",
     "ruff>=0.15.9",
     "time-machine>=3.6.0",
     "tzdata>=2026.6 ; sys_platform == 'win32'",
@@ -248,6 +249,7 @@ calver-scm = "calver_scm:calver_scm"
 
 [project.scripts]
 calver-scm = "calver_scm.cli:main"
+calver-scm-validate-pushed-tag = "calver_scm.hooks:main"
 
 [project.optional-dependencies]
 cli = [

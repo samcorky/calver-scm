@@ -1,0 +1,145 @@
+name: calver-scm
+description: >-
+  Run calver-scm in a workflow: plan the next release tag, check a tag against your
+  CalVer scheme, check the setup, or read the version. Results go to step outputs and,
+  by default, to the job summary. The checkout needs its tags, so use fetch-depth: 0.
+author: samcorky
+
+inputs:
+  command:
+    description: >-
+      What to run: version, next-tag, validate, parse, doctor, explain or tags.
+    required: true
+  tag:
+    description: The tag to check, for validate and parse, for example v2026.4.2.
+    required: false
+    default: ""
+  pre:
+    description: Plan a pre-release on this channel (a, b or rc), for next-tag.
+    required: false
+    default: ""
+  strict:
+    description: For doctor, fail on warnings as well as errors (true or false).
+    required: false
+    default: "false"
+  against-repo:
+    description: >-
+      For validate and parse, also check the tag against the repository's tags
+      (true or false). Needs a full clone.
+    required: false
+    default: "false"
+  root:
+    description: The project directory, if it is not the repository root.
+    required: false
+    default: "."
+  summary:
+    description: Also write a report to the job summary (true or false).
+    required: false
+    default: "true"
+  calver-scm-version:
+    description: >-
+      The calver-scm release to install, such as 1.11.1. Pin it so a new release
+      cannot change a build; empty uses the latest. The value installed runs the
+      calver-scm already on PATH instead, for example from your own environment.
+    required: false
+    default: ""
+
+outputs:
+  tag:
+    description: The planned tag, for next-tag.
+    value: ${{ steps.run.outputs.tag }}
+  version:
+    description: The version, for version, next-tag and parse.
+    value: ${{ steps.run.outputs.version }}
+  is_prerelease:
+    description: Whether the tag is a pre-release (true or false), for next-tag, validate and parse.
+    value: ${{ steps.run.outputs.is_prerelease }}
+  reason:
+    description: Why next-tag planned that tag.
+    value: ${{ steps.run.outputs.reason }}
+  valid:
+    description: Whether the tag is valid (true or false), for validate and parse.
+    value: ${{ steps.run.outputs.valid }}
+  kind:
+    description: The kind of tag (final, prerelease, postrelease or dev), for validate and parse.
+    value: ${{ steps.run.outputs.kind }}
+  period:
+    description: The date part of the tag, for validate and parse.
+    value: ${{ steps.run.outputs.period }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install uv
+      if: ${{ inputs.calver-scm-version != 'installed' }}
+      uses: astral-sh/setup-uv@v10.4.0
+
+    # Inputs reach the script through env, never interpolated into it, so a crafted
+    # value cannot become shell code.
+    - name: Run calver-scm
+      id: run
+      shell: bash
+      env:
+        COMMAND: ${{ inputs.command }}
+        TAG: ${{ inputs.tag }}
+        PRE: ${{ inputs.pre }}
+        STRICT: ${{ inputs.strict }}
+        AGAINST_REPO: ${{ inputs.against-repo }}
+        ROOT: ${{ inputs.root }}
+        SUMMARY: ${{ inputs.summary }}
+        CALVER_SCM_VERSION: ${{ inputs.calver-scm-version }}
+      run: |
+        set -euo pipefail
+
+        fail() {
+          echo "::error::$1"
+          exit 2
+        }
+
+        case "$COMMAND" in
+          version | next-tag | validate | parse | doctor | explain | tags) ;;
+          *) fail "Unknown command '${COMMAND}'. Use version, next-tag, validate, parse, doctor, explain or tags." ;;
+        esac
+
+        args=()
+        if [[ "$SUMMARY" == "true" ]]; then
+          args+=(--summary)
+        fi
+        # explain, doctor and tags have nested results that cannot be step outputs.
+        case "$COMMAND" in
+          version | next-tag | validate | parse) args+=(--format github) ;;
+        esac
+        args+=("$COMMAND")
+
+        case "$COMMAND" in
+          validate | parse)
+            [[ -n "$TAG" ]] || fail "The ${COMMAND} command needs the tag input."
+            [[ "$TAG" != -* ]] || fail "The tag input must not start with a hyphen."
+            args+=("$TAG" --tag)
+            if [[ "$AGAINST_REPO" == "true" ]]; then
+              args+=(--against-repo)
+            fi
+            ;;
+          next-tag)
+            if [[ -n "$PRE" ]]; then
+              args+=(--pre "$PRE")
+            fi
+            ;;
+          doctor)
+            if [[ "$STRICT" == "true" ]]; then
+              args+=(--strict)
+            fi
+            ;;
+        esac
+        args+=(--root "$ROOT")
+
+        if [[ "$CALVER_SCM_VERSION" == "installed" ]]; then
+          exec calver-scm "${args[@]}"
+        fi
+        spec="calver-scm[cli]"
+        if [[ -n "$CALVER_SCM_VERSION" ]]; then
+          [[ "$CALVER_SCM_VERSION" =~ ^[0-9][0-9A-Za-z.+!_-]*$ ]] \
+            || fail "calver-scm-version '${CALVER_SCM_VERSION}' is not a version such as 1.11.1."
+          spec+="==${CALVER_SCM_VERSION}"
+        fi
+        exec uvx --from "$spec" calver-scm "${args[@]}"

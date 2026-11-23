@@ -1,0 +1,124 @@
+name: Test action
+
+# Runs the repository's own action (action.yml) against a throwaway project, with the
+# calver-scm built from this checkout, so a change to the action or the CLI it calls is
+# exercised on a real runner before a release.
+on:
+  pull_request:
+    paths:
+      - action.yml
+      - .pre-commit-hooks.yaml
+      - src/**
+      - .github/workflows/test-action.yml
+  push:
+    branches: [main]
+    paths:
+      - action.yml
+      - .pre-commit-hooks.yaml
+      - src/**
+      - .github/workflows/test-action.yml
+
+permissions:
+  contents: read
+
+jobs:
+  action:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: astral-sh/setup-uv@v10.4.0
+
+      # The action's "installed" mode runs the calver-scm already on PATH.
+      - name: Install calver-scm from this checkout
+        run: |
+          uv tool install ".[cli]"
+          echo "$(uv tool dir --bin)" >> "$GITHUB_PATH"
+
+      - name: Make a project released at v2026.04.2
+        run: |
+          demo="$RUNNER_TEMP/demo"
+          mkdir -p "$demo"
+          cd "$demo"
+          git init -q
+          git config user.name test
+          git config user.email test@example.com
+          git config commit.gpgsign false
+          git config tag.gpgsign false
+          cat > pyproject.toml <<'TOML'
+          [project]
+          name = "demo"
+          dynamic = ["version"]
+          [tool.setuptools_scm]
+          version_scheme = "calver-scm"
+          local_scheme = "no-local-version"
+          TOML
+          git add .
+          git commit -q -m initial
+          git tag v2026.04.2
+          echo "DEMO=$demo" >> "$GITHUB_ENV"
+
+      - name: doctor, strict
+        uses: ./
+        with:
+          command: doctor
+          strict: "true"
+          root: ${{ env.DEMO }}
+          calver-scm-version: installed
+
+      - name: next-tag
+        id: next
+        uses: ./
+        with:
+          command: next-tag
+          pre: rc
+          root: ${{ env.DEMO }}
+          calver-scm-version: installed
+
+      - name: Check the next-tag outputs
+        env:
+          TAG: ${{ steps.next.outputs.tag }}
+          IS_PRERELEASE: ${{ steps.next.outputs.is_prerelease }}
+        run: |
+          echo "tag=$TAG is_prerelease=$IS_PRERELEASE"
+          [[ "$TAG" == v*rc1 ]]
+          [[ "$IS_PRERELEASE" == "true" ]]
+
+      - name: validate
+        id: validate
+        uses: ./
+        with:
+          command: validate
+          tag: v2026.4.2
+          root: ${{ env.DEMO }}
+          calver-scm-version: installed
+
+      - name: Check the validate outputs
+        env:
+          VALID: ${{ steps.validate.outputs.valid }}
+          KIND: ${{ steps.validate.outputs.kind }}
+        run: |
+          [[ "$VALID" == "true" ]]
+          [[ "$KIND" == "final" ]]
+
+      - name: explain, which has no step outputs
+        uses: ./
+        with:
+          command: explain
+          root: ${{ env.DEMO }}
+          calver-scm-version: installed
+
+      - name: A bad version pin fails before installing anything
+        id: bad
+        continue-on-error: true
+        uses: ./
+        with:
+          command: doctor
+          calver-scm-version: "1.0 --index-url x"
+
+      - name: Check the bad pin failed
+        env:
+          OUTCOME: ${{ steps.bad.outcome }}
+        run: '[[ "$OUTCOME" == "failure" ]]'

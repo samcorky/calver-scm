@@ -1,0 +1,31 @@
+# Hooks for repositories that version with calver-scm. Use them from a
+# .pre-commit-config.yaml (pre-commit or prek):
+#
+#   repos:
+#     - repo: https://github.com/samcorky/calver-scm
+#       rev: <a release that includes these hooks>
+#       hooks:
+#         - id: calver-scm-doctor
+#         - id: calver-scm-validate-tag
+#
+# Both run in the pre-push stage.
+
+- id: calver-scm-doctor
+  name: calver-scm doctor
+  description: Check the CalVer setup for problems before pushing
+  entry: calver-scm doctor
+  language: python
+  additional_dependencies: [".[cli]"]
+  pass_filenames: false
+  always_run: true
+  stages: [pre-push, manual]
+
+- id: calver-scm-validate-tag
+  name: calver-scm validate tag
+  description: Check a tag being pushed against the project's CalVer scheme
+  entry: calver-scm-validate-pushed-tag
+  language: python
+  additional_dependencies: [".[cli]"]
+  pass_filenames: false
+  always_run: true
+  stages: [pre-push]
