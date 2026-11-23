@@ -31,8 +31,10 @@ name = "api"
 dynamic = ["version"]
 [tool.hatch.version]
 source = "vcs"
-raw-options = {{ version_scheme = "calver-scm", {tag},
-  local_scheme = "no-local-version" }}
+[tool.hatch.version.raw-options]
+version_scheme = "calver-scm"
+local_scheme = "no-local-version"
+{tag}
 [tool.calver-scm]
 tag_prefix = "api-v"
 """
