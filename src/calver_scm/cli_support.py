@@ -187,7 +187,7 @@ def _build_options(
         name = data.get("project", {}).get("name")
         if name is not None:
             options.setdefault("dist_name", name)
-        return options
+        return _without_tag_table(options)
 
     hatch_version: dict[str, Any] = tool.get("hatch", {}).get("version", {})
     if hatch_version.get("source") == "vcs":
@@ -199,9 +199,46 @@ def _build_options(
             options["tag_regex"] = tag_pattern
         if fallback := hatch_version.get("fallback-version"):
             options["fallback_version"] = fallback
-        return options
+        return _without_tag_table(options)
 
     return None
+
+
+def _without_tag_table(options: dict[str, Any]) -> dict[str, Any]:
+    """Express the `tag` table in the keywords `get_version` accepts.
+
+    A real build reads `tag.prefix` and `tag.regex`; `get_version` has no `tag`
+    keyword, so they become the describe command and `tag_regex` it does take.
+    """
+    tag = options.pop("tag", None)
+    if not tag:
+        return options
+    unsupported = sorted(set(tag) - {"prefix", "regex"})
+    if unsupported:
+        raise ResolutionError(
+            "calver-scm cannot read "
+            + ", ".join(f"tag.{key}" for key in unsupported)
+            + " from the build configuration; use tag.prefix, tag.regex or "
+            "scm.git.describe_command"
+        )
+    if regex := tag.get("regex"):
+        options.setdefault("tag_regex", regex)
+    if prefix := tag.get("prefix"):
+        git = options.setdefault("scm", {}).setdefault("git", {})
+        git.setdefault(
+            "describe_command",
+            [
+                "git",
+                "describe",
+                "--dirty",
+                "--tags",
+                "--long",
+                "--abbrev=40",
+                "--match",
+                f"{prefix}*[0-9]*",
+            ],
+        )
+    return options
 
 
 def _normalise_keys(table: dict[str, Any]) -> dict[str, Any]:
