@@ -869,7 +869,7 @@ For [pre-commit](https://pre-commit.com) or [prek](https://github.com/j178/prek)
 ```yaml
 repos:
   - repo: https://github.com/samcorky/calver-scm
-    rev: <a release that includes these hooks>
+    rev: v1.12.0
     hooks:
       - id: calver-scm-doctor
       - id: calver-scm-validate-tag
@@ -901,7 +901,7 @@ jobs:
         with:
           fetch-depth: 0 # the commands read the tags
       - id: plan
-        uses: samcorky/calver-scm@<a release that includes the action>
+        uses: samcorky/calver-scm@v1.12.0
         with:
           command: next-tag
           pre: rc
@@ -922,7 +922,7 @@ jobs:
 
 Outputs, from `--format github`: `tag`, `version`, `is_prerelease` and `reason` (`next-tag`), and `valid`, `kind`, `period` and `is_prerelease` (`validate` and `parse`). `version` also comes from `version` and `parse`. `explain`, `doctor` and `tags` have nested results, so they write the job summary only.
 
-The action runs `--summary` and `--format github`, so it needs a calver-scm release that has them: the first release made after the action was added, not an older one. A pin to an older release fails with an unknown option.
+The action runs `--summary` and `--format github`, so it needs calver-scm 1.12.0 or later; a pin to an older release fails with an unknown option.
 
 **Pin the version.** With the input empty, each run installs the latest release, so a new release can change a build. Pin `calver-scm-version`, and let a dependency updater such as Renovate move the pin. A project that already locks calver-scm in its own environment can instead install that and use `calver-scm-version: installed`, so there is one version, not two.
 
