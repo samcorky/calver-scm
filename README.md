@@ -113,6 +113,10 @@ Then in your `__init__.py`:
 from ._version import __version__
 ```
 
+This hook runs only inside a hatch build. To write the same kind of file without
+a build, for example in a project that has no `pyproject.toml`, see
+[Writing the version to a file](#writing-the-version-to-a-file).
+
 That's it. Your project will now version itself automatically on every build.
 
 ### CI note
@@ -514,6 +518,26 @@ calver-scm version --json           # {"version": "2026.4.3.dev3+g1a2b3c4"}
 
 `version` reads the project's own `[tool.setuptools_scm]` or Hatch-VCS `[tool.hatch.version]` settings and asks setuptools-scm for the result, so it includes your `local_scheme` and honours `CALVER_SCM_*` overrides. It fails if the project does not use `version_scheme = "calver-scm"`.
 
+#### Writing the version to a file
+
+```bash
+calver-scm version --write src/app/_version.py   # a module with __version__ and version
+calver-scm version --write VERSION               # just the version and a newline
+calver-scm version --write VERSION --dry-run     # show what would be written
+```
+
+`--write PATH` also writes the version to a file, for when no build writes it for you, such as an application that needs the Git tag as its version at image build time. If you build with hatch-vcs, its `version-file` hook (see [hatch-vcs extras](#hatch-vcs-extras-optional)) already writes the same kind of file during the build, and setuptools-scm has an equivalent `version_file` setting, so you do not need `--write` there. A `.py` file gets a small module (`__version__ = version = '2026.4.3'`, with an `__all__`), in the shape setuptools-scm writes; any other file gets the version and a newline. Stdout is unchanged and `--json` still works. What was done is said on stderr: `wrote PATH`, or `unchanged PATH` when the file already held the version, in which case it is not touched and its timestamp does not change.
+
+The write is safe to run in a build step:
+
+- The path is resolved, following symlinks, before it is checked, so it must be inside the project (`--root`); `..` and a link pointing out are refused with exit `2`, and an absolute path is allowed only when it is inside.
+- The file is written beside the target and renamed over it, so a reader never sees half a file and a failure leaves the old content.
+- The directory must already exist; it is not created.
+- Nothing is written when the version cannot be resolved.
+- `--dry-run` (needs `--write`) prints `would write PATH:` and the content on stderr and writes nothing.
+
+If the file is tracked by Git, rewriting it makes the tree dirty, which some `local_scheme` settings turn into a `+dirty` suffix, so add a generated file to `.gitignore`.
+
 ```bash
 calver-scm validate 2026.4.2                 # valid: 2026.4.2
 calver-scm validate v2026.4.2 --tag          # check a Git tag, including its prefix
@@ -652,6 +676,8 @@ It skips only an input whose sole problem is the `0.` prefix disagreeing with `s
 | --- | --- | --- |
 | `--root` | `-r` | every command |
 | `--reverse` | `-R` | `sort` |
+| `--write` | none | `version` |
+| `--dry-run` | none | `version` |
 | `--skip-other-stability` | none | `sort` |
 | `--tag` | `-t` | `validate`, `parse`, `compare`, `sort` |
 | `--against-repo` | none | `validate`, `parse` |
