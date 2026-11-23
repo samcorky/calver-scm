@@ -366,3 +366,128 @@ def test_build_configuration_remediation_mentions_calver_scm_toml(
     """Point at calver-scm.toml as an option when no build setup is found."""
     _, report = run_doctor(capsys, tmp_path)
     assert "calver-scm.toml" in by_code(report)["build_config"]["remediation"]
+
+
+MONOREPO = """
+[project]
+name = "api"
+dynamic = ["version"]
+[tool.setuptools_scm]
+version_scheme = "calver-scm"
+local_scheme = "no-local-version"
+{extra}
+[tool.calver-scm]
+tag_prefix = "{prefix}"
+"""
+
+
+def monorepo(
+    make_git_project: Callable[..., Path],
+    *,
+    first: str,
+    second: str | None,
+    prefix: str = "api-v",
+    extra: str = "",
+) -> Path:
+    """A repository tagged `first`, then one more commit tagged `second`."""
+    project = make_git_project(MONOREPO.format(prefix=prefix, extra=extra), tag=first)
+    if second is not None:
+        (project / "more.txt").write_text("more", encoding="utf-8")
+        for args in (["add", "."], ["commit", "-q", "-m", "more"], ["tag", second]):
+            subprocess.run(
+                [
+                    "git",
+                    "-c",
+                    "user.name=t",
+                    "-c",
+                    "user.email=t@e.com",
+                    "-c",
+                    "commit.gpgsign=false",
+                    "-c",
+                    "tag.gpgsign=false",
+                    *args,
+                ],
+                cwd=project,
+                check=True,
+                capture_output=True,
+            )
+    return project
+
+
+@pytest.mark.e2e
+def test_foreign_build_tag_is_warned_with_the_fix(
+    make_git_project: Callable[..., Path], capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Warn when another package's tag is the nearest, and show how to scope it."""
+    project = monorepo(
+        make_git_project, first="api-v2026.11.1", second="web-v2026.11.3"
+    )
+    code, report = run_doctor(capsys, project)
+    check = by_code(report)["foreign_build_tag"]
+    assert code == 0
+    assert check["severity"] == "warning"
+    assert "web-v2026.11.3" in check["detail"]
+    assert "api-v" in check["detail"]
+    assert "[tool.setuptools_scm.scm.git]" in check["remediation"]
+    assert "--match api-v*" in check["remediation"]
+    assert "raw-options" in check["remediation"]
+
+
+@pytest.mark.e2e
+def test_strict_doctor_fails_on_a_foreign_build_tag(
+    make_git_project: Callable[..., Path], capsys: pytest.CaptureFixture[str]
+) -> None:
+    project = monorepo(
+        make_git_project, first="api-v2026.11.1", second="web-v2026.11.3"
+    )
+    code = main(["doctor", "--strict", "--root", str(project)])
+    capsys.readouterr()
+    assert code == 1
+
+
+@pytest.mark.e2e
+@pytest.mark.parametrize(
+    ("first", "second", "prefix", "extra"),
+    [
+        ("web-v2026.11.3", "api-v2026.11.1", "api-v", ""),
+        ("2026.4.2", None, "v", ""),
+        ("web-v2026.11.3", None, "", ""),
+        ("latest", None, "api-v", ""),
+        (
+            "api-v2026.11.1",
+            "web-v2026.11.3",
+            "api-v",
+            "[tool.setuptools_scm.scm.git]\ndescribe_command = "
+            '"git describe --dirty --tags --long --match api-v*"',
+        ),
+    ],
+    ids=[
+        "own tag nearest",
+        "bare tag, default prefix",
+        "empty prefix",
+        "no tag parses",
+        "describe_command set",
+    ],
+)
+def test_no_foreign_build_tag_finding(
+    make_git_project: Callable[..., Path],
+    capsys: pytest.CaptureFixture[str],
+    first: str,
+    second: str | None,
+    prefix: str,
+    extra: str,
+) -> None:
+    project = monorepo(
+        make_git_project, first=first, second=second, prefix=prefix, extra=extra
+    )
+    _, report = run_doctor(capsys, project)
+    assert "foreign_build_tag" not in by_code(report)
+
+
+@pytest.mark.e2e
+def test_no_foreign_build_tag_finding_without_tags(
+    make_git_project: Callable[..., Path], capsys: pytest.CaptureFixture[str]
+) -> None:
+    project = make_git_project(MONOREPO.format(prefix="api-v", extra=""))
+    _, report = run_doctor(capsys, project)
+    assert "foreign_build_tag" not in by_code(report)

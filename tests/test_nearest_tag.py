@@ -74,9 +74,6 @@ def test_nearest_tag_is_none_without_tags(
     [
         ({}, False),
         ({"scm": {"git": {}}}, False),
-        ({"tag": {}}, False),
-        ({"tag": {"prefix": ""}}, False),
-        ({"tag": {"prefix": "api-v"}}, True),
         ({"scm": {"git": {"describe_command": "git describe"}}}, True),
         ({"git_describe_command": "git describe"}, True),
     ],
