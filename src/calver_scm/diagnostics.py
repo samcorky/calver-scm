@@ -12,6 +12,9 @@ from calver_scm.cli_support import (
     _checked_options,
     explain_build_version,
     is_shallow_repository,
+    list_local_tags,
+    nearest_build_tag,
+    scopes_build_tags,
 )
 from calver_scm.config import (
     CONFIG_FILE_NAME,
@@ -20,6 +23,7 @@ from calver_scm.config import (
     describe_settings_files,
 )
 from calver_scm.models import ResolutionReason
+from calver_scm.parser import _parse_tag
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -41,6 +45,7 @@ class CheckCode(StrEnum):
     RESOLUTION = "resolution"
     SHALLOW_CHECKOUT = "shallow_checkout"
     NO_COMPATIBLE_TAG = "no_compatible_tag"
+    FOREIGN_BUILD_TAG = "foreign_build_tag"
     DIRTY_TREE = "dirty_tree"
     NO_DEV_LOCAL_SEGMENT = "no_dev_local_segment"
 
@@ -228,7 +233,40 @@ def _check_resolution(project: Path, *, git_available: bool) -> list[Diagnostic]
             )
         )
     results.extend(_check_explanation(explanation))
+    if git_available:
+        results.extend(_check_foreign_build_tag(project, explanation))
     return results
+
+
+def _check_foreign_build_tag(
+    project: Path, explanation: BuildExplanation
+) -> list[Diagnostic]:
+    """Warn when the build reads another package's tag instead of this one's."""
+    if scopes_build_tags(_checked_options(project)):
+        return []
+    tag = nearest_build_tag(project)
+    config = explanation.config
+    if tag is None or _parse_tag(tag, config) is not None:
+        return []
+    if not any(_parse_tag(t, config) for t in list_local_tags(project)):
+        return []
+    prefix = config.tag_prefix
+    command = f"git describe --dirty --tags --long --match {prefix}*"
+    return [
+        Diagnostic(
+            CheckCode.FOREIGN_BUILD_TAG,
+            Severity.WARNING,
+            "The build reads a tag that is not this project's",
+            f"The build uses the tag {tag!r}, which does not start with the "
+            f"configured prefix {prefix!r}, so the version is built from "
+            "another package's tag.",
+            "Limit the tags the build reads. With setuptools-scm add to "
+            "pyproject.toml: [tool.setuptools_scm.scm.git] "
+            f'describe_command = "{command}"'
+            ". With Hatch-VCS add to [tool.hatch.version]: "
+            f'raw-options = {{ scm.git.describe_command = "{command}" }}.',
+        )
+    ]
 
 
 def _check_explanation(explanation: BuildExplanation) -> list[Diagnostic]:

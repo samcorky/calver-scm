@@ -422,6 +422,24 @@ tag_prefix = ""
 tag_prefix = "release-"
 ```
 
+#### Repositories with several tag prefixes
+
+If one repository releases several packages (`api-v2026.11.1`, `web-v2026.11.3`), give each package its own `tag_prefix`. `next-tag`, `tags` and `validate --against-repo` then count only that package's tags and skip the rest, saying which prefix a skipped tag has.
+
+The build needs one more step. setuptools-scm reads the nearest tag of any name, so `api` built after a `web` tag takes `web`'s version. Limit the tags it reads:
+
+```toml
+# setuptools-scm
+[tool.setuptools_scm.scm.git]
+describe_command = "git describe --dirty --tags --long --match api-v*"
+
+# Hatch-VCS
+[tool.hatch.version]
+raw-options = { scm.git.describe_command = "git describe --dirty --tags --long --match api-v*" }
+```
+
+`calver-scm doctor` warns (`foreign_build_tag`) when the nearest tag is not the project's own and shows these lines with your prefix filled in. It stays quiet once you set a describe command. The `.devN` number still counts every commit since the tag, including other packages' commits.
+
 ### `timezone`
 
 Controls which timezone is used to compute the date segment.
@@ -855,6 +873,7 @@ Errors are always plain text on stderr, whatever the format, and leave stdout em
 | `resolution` | `ok` or `error` | The version resolves. Skipped when `build_config` fails. |
 | `shallow_checkout` | `warning` | A shallow clone, so tags and commit distance may be missing. |
 | `no_compatible_tag` | `warning` | No tag fits the scheme, so the fallback applied. |
+| `foreign_build_tag` | `warning` | The build reads a tag with another prefix, so the version comes from another package. |
 | `dirty_tree` | `info` | There are uncommitted changes. |
 | `no_dev_local_segment` | `warning` | `no_dev` does not remove the local version segment. |
 
