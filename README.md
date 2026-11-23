@@ -45,6 +45,7 @@ Versions look like this:
 - [Environment variable overrides](#environment-variable-overrides)
 - [Local scheme](#local-scheme)
 - [Command line](#command-line)
+- [Hooks and the GitHub Action](#hooks-and-the-github-action)
 - [Requirements](#requirements)
 - [Contributing](#contributing)
 - [Security](#security)
@@ -858,6 +859,74 @@ Errors are always plain text on stderr, whatever the format, and leave stdout em
 | `no_dev_local_segment` | `warning` | `no_dev` does not remove the local version segment. |
 
 Without the `cli` extra the `calver-scm` command still exists but only prints how to install it.
+
+## Hooks and the GitHub Action
+
+### pre-commit hooks
+
+For [pre-commit](https://pre-commit.com) or [prek](https://github.com/j178/prek), the repository defines two hooks that run in the `pre-push` stage:
+
+```yaml
+repos:
+  - repo: https://github.com/samcorky/calver-scm
+    rev: <a release that includes these hooks>
+    hooks:
+      - id: calver-scm-doctor
+      - id: calver-scm-validate-tag
+```
+
+- `calver-scm-doctor` runs `calver-scm doctor` before a push and also in the `manual` stage. Pass `args: [--strict]` to fail on warnings.
+- `calver-scm-validate-tag` checks the tag being pushed, as `calver-scm validate --tag` does, against the settings in the repository. A branch push is ignored. It runs the `calver-scm-validate-pushed-tag` command, which reads the pushed ref from `PRE_COMMIT_REMOTE_BRANCH`.
+
+Both install calver-scm with its CLI extras into the hook's own environment, so nothing else needs installing.
+
+`calver-scm-validate-tag` guards fewer tags than you might expect, because of how git and pre-commit run pre-push hooks:
+
+- git runs no pre-push hook at all for a tag on a commit the remote already has, which is the usual release flow (tag the commit on `main`, then push the tag). Such a tag is not checked.
+- It sees one ref per run, so a tag pushed in the same command as a branch is not checked.
+- It catches a tag on a new commit, for example `git tag 2026.4.2 && git push origin 2026.4.2` with the prefix missing, which is stopped with the findings.
+
+Use the GitHub Action below, or `calver-scm validate "$GITHUB_REF_NAME" --tag --against-repo`, as the check that cannot be skipped.
+
+### GitHub Action
+
+The repository is also a GitHub Action that runs calver-scm in a workflow and passes the result on as step outputs and, by default, in the job summary:
+
+```yaml
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # the commands read the tags
+      - id: plan
+        uses: samcorky/calver-scm@<a release that includes the action>
+        with:
+          command: next-tag
+          pre: rc
+          calver-scm-version: "1.12.0" # pin it, see below
+      - run: echo "Releasing ${{ steps.plan.outputs.tag }}"
+```
+
+| Input | Meaning |
+| --- | --- |
+| `command` | Required: `version`, `next-tag`, `validate`, `parse`, `doctor`, `explain` or `tags`. |
+| `tag` | The tag to check, for `validate` and `parse` (required for them). |
+| `pre` | The channel (`a`, `b` or `rc`), for `next-tag`. |
+| `strict` | `true` to make `doctor` fail on warnings. |
+| `against-repo` | `true` to also check the tag against the repository's tags, for `validate` and `parse`. |
+| `root` | The project directory, if it is not the repository root. Default `.`. |
+| `summary` | `true` (the default) also writes the job summary, as `--summary` does. |
+| `calver-scm-version` | The release to install, such as `1.12.0`. Empty installs the latest. `installed` runs the `calver-scm` already on `PATH`. |
+
+Outputs, from `--format github`: `tag`, `version`, `is_prerelease` and `reason` (`next-tag`), and `valid`, `kind`, `period` and `is_prerelease` (`validate` and `parse`). `version` also comes from `version` and `parse`. `explain`, `doctor` and `tags` have nested results, so they write the job summary only.
+
+The action runs `--summary` and `--format github`, so it needs a calver-scm release that has them: the first release made after the action was added, not an older one. A pin to an older release fails with an unknown option.
+
+**Pin the version.** With the input empty, each run installs the latest release, so a new release can change a build. Pin `calver-scm-version`, and let a dependency updater such as Renovate move the pin. A project that already locks calver-scm in its own environment can instead install that and use `calver-scm-version: installed`, so there is one version, not two.
+
+The action passes its inputs to the script through environment variables, never by interpolating them into shell code, and rejects an unknown command, a missing tag, a tag that starts with a hyphen and a version that is not a version before anything is installed or run.
 
 ---
 
