@@ -19,15 +19,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # Required for setuptools-scm to derive the version from Git history
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v10.4.0
+        uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
         with:
-          enable-cache: true
+          # No cache for the files that are published: a cache written by another run
+          # must not feed into them. Publish calls this workflow on a release event.
+          enable-cache: ${{ github.event_name != 'release' }}
 
       - name: Install Python
         run: uv python install
@@ -39,7 +42,7 @@ jobs:
         run: uv run --frozen poe build-check
 
       - name: Upload distributions
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dist
           path: dist/

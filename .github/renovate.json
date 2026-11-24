@@ -4,6 +4,7 @@
     "config:recommended",
     "config:semverAllWeekly",
     ":automergePr",
+    "helpers:pinGitHubActionDigests",
     ":dependencyDashboard",
     ":automergeStableNonMajor",
     ":automergeRequireAllStatusChecks",
