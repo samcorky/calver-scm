@@ -72,7 +72,7 @@ runs:
   steps:
     - name: Install uv
       if: ${{ inputs.calver-scm-version != 'installed' }}
-      uses: astral-sh/setup-uv@v10.4.0
+      uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
 
     # Inputs reach the script through env, never interpolated into it, so a crafted
     # value cannot become shell code.
