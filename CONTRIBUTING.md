@@ -121,6 +121,15 @@ Things worth knowing when changing this code:
 - Link related issues where relevant.
 - Ensure all checks are green before requesting review.
 
+## Releases
+
+Publishing a GitHub release for a `vX.Y.Z` tag runs `.github/workflows/publish.yml`, which uploads the wheel and sdist to PyPI through trusted publishing. Before anything is built or uploaded it checks that:
+
+- the tag is a valid semver tag, and is on `main` (a release made from a tag on another branch fails);
+- the distributions are built with no uv cache, and the checkout keeps no credentials.
+
+Every action in `publish.yml` and `build-dist.yml` is pinned by commit SHA with its version in a comment; Renovate keeps them current. The files carry GitHub attestations (`gh attestation verify <file> --owner samcorky`) and PyPI's own PEP 740 attestations, which pypi.org shows as the files' provenance. The trusted publisher on PyPI names `publish.yml` and the `pypi` environment, so renaming either needs it updated.
+
 ## Reporting bugs
 
 When opening a bug report, include:
